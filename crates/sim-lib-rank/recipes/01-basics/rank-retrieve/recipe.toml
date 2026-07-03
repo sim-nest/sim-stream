@@ -1,0 +1,8 @@
+id = "rank-retrieve"
+title = "Rank-backed retrieve"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 20
+tags = ["rank", "retrieve", "embedding"]
+requires = ["rank"]

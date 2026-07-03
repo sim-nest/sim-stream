@@ -1,0 +1,5 @@
+book = "stream-audio"
+title = "Stream Audio"
+summary = "PCM specs, buffers, memory sources, and sinks."
+order = 111
+chapters = ["01-basics"]

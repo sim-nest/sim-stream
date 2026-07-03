@@ -1,0 +1,5 @@
+book = "stream-clock"
+title = "Stream Clock"
+summary = "Clock charts, tick conversion, and tempo descriptors."
+order = 110
+chapters = ["01-basics"]

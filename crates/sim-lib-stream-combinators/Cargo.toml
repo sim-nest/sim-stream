@@ -1,0 +1,17 @@
+[package]
+name = "sim-lib-stream-combinators"
+version = "0.1.0"
+edition = "2024"
+license = "MPL-2.0"
+description = "Lazy in-memory stream combinators for STREAM 6."
+readme = "README.md"
+publish = true
+repository = "https://github.com/sim-nest/sim-stream"
+homepage = "https://github.com/sim-nest/sim-stream"
+
+[dependencies]
+sim-kernel = { version = "0.1.0" }
+sim-lib-stream-core = { version = "0.1.0", path = "../sim-lib-stream-core" }
+
+[lints]
+workspace = true

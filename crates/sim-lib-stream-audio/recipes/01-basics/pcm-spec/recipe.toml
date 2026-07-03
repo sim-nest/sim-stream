@@ -1,0 +1,8 @@
+id = "pcm-spec"
+title = "PCM spec descriptor"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 10
+tags = ["stream", "audio", "pcm"]
+requires = ["stream-audio", "codec/lisp"]

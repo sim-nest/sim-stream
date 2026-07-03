@@ -1,0 +1,8 @@
+id = "tiny-graph"
+title = "Tiny data-authored graph"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 10
+tags = ["topology", "graph", "descriptor"]
+requires = ["topology", "codec/lisp"]

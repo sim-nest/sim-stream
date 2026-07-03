@@ -1,0 +1,5 @@
+book = "stream-core-shapes"
+title = "Stream Core"
+summary = "Stream metadata and descriptor shapes."
+order = 70
+chapters = ["01-basics"]

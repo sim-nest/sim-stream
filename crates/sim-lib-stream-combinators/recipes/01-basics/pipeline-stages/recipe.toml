@@ -1,0 +1,8 @@
+id = "pipeline-stages"
+title = "Pipeline stage descriptor"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 10
+tags = ["stream", "combinator", "pipeline"]
+requires = ["stream-combinators", "codec/lisp"]

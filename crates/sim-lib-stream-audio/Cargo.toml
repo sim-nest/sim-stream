@@ -1,0 +1,20 @@
+[package]
+name = "sim-lib-stream-audio"
+version = "0.1.0"
+edition = "2024"
+license = "MPL-2.0"
+description = "PCM source and sink adapters for STREAM 6."
+readme = "README.md"
+publish = true
+repository = "https://github.com/sim-nest/sim-stream"
+homepage = "https://github.com/sim-nest/sim-stream"
+
+[dependencies]
+sim-citizen = { version = "0.1.0" }
+sim-citizen-derive = { version = "0.1.0" }
+sim-kernel = { version = "0.1.0" }
+sim-value = { version = "0.1.0" }
+sim-lib-stream-core = { version = "0.1.0", path = "../sim-lib-stream-core" }
+
+[lints]
+workspace = true

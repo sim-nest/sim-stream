@@ -1,0 +1,5 @@
+book = "rank"
+title = "Rank"
+summary = "Rank spaces, nodes, coordinates, and deterministic traversal."
+order = 70
+chapters = ["01-basics", "30-agents"]

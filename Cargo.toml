@@ -1,0 +1,22 @@
+
+[workspace]
+resolver = "3"
+members = [
+  "crates/sim-lib-rank",
+  "crates/sim-lib-stream-audio",
+  "crates/sim-lib-stream-clock",
+  "crates/sim-lib-stream-combinators",
+  "crates/sim-lib-stream-core",
+  "crates/sim-lib-stream-prelude",
+  "crates/sim-lib-topology",
+  "xtask",
+]
+
+[workspace.package]
+edition = "2024"
+license = "MPL-2.0"
+repository = "https://github.com/sim-nest/sim-stream"
+homepage = "https://github.com/sim-nest/sim-stream"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"

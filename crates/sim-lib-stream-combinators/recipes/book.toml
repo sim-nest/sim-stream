@@ -1,0 +1,5 @@
+book = "stream-combinators"
+title = "Stream Combinators"
+summary = "Lazy stream transforms, recording, replay, and event algebra."
+order = 115
+chapters = ["01-basics"]

@@ -1,0 +1,26 @@
+[package]
+name = "sim-lib-stream-prelude"
+version = "0.1.0"
+edition = "2024"
+license = "MPL-2.0"
+description = "Lisp-facing STREAM 6 prelude for memory streams."
+readme = "README.md"
+publish = true
+repository = "https://github.com/sim-nest/sim-stream"
+homepage = "https://github.com/sim-nest/sim-stream"
+
+[dependencies]
+sim-citizen-derive = { version = "0.1.0" }
+sim-kernel = { version = "0.1.0" }
+sim-lib-core = { version = "0.1.0" }
+sim-lib-stream-audio = { version = "0.1.0", path = "../sim-lib-stream-audio" }
+sim-lib-stream-combinators = { version = "0.1.0", path = "../sim-lib-stream-combinators" }
+sim-lib-stream-core = { version = "0.1.0", path = "../sim-lib-stream-core" }
+sim-value = { version = "0.1.0" }
+
+[dev-dependencies]
+sim-codec = { version = "0.1.0" }
+sim-codec-lisp = { version = "0.1.0" }
+
+[lints]
+workspace = true

@@ -1,0 +1,24 @@
+id = "a30-018-recommendation"
+title = "Recommendation agent"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 18
+tags = ["30-agents", "chapter-10", "recommendation", "offline", "deterministic", "rank"]
+requires = ["rank", "codec/lisp"]
+recipe_number = 18
+source_chapter = 10
+architecture_family = "recommendation"
+runner_mode = "fake"
+safety_posture = "offline"
+capabilities = ["read-eval", "rank-search", "deterministic-ordering"]
+descriptor_shape = "recommendation-ranking"
+assert_tags = ["30-agents", "chapter-10", "recommendation", "offline"]
+assert_capabilities = ["read-eval"]
+assert_setup_codec = "lisp"
+assert_descriptor_shape = "recommendation-ranking"
+expected = "expected.txt"
+
+[[expect]]
+form = 0
+result = "(recommendation-ranking (id a30-018-recommendation) (space content-preference (axis novelty) (axis depth) (axis duration)) (preference (user reader-1) (coordinate novelty 70) (coordinate depth 80) (coordinate duration 30)) (items (item guide-a (coordinate novelty 60) (coordinate depth 90) (coordinate duration 25)) (item clip-b (coordinate novelty 95) (coordinate depth 35) (coordinate duration 10)) (item essay-c (coordinate novelty 72) (coordinate depth 76) (coordinate duration 35))) (ranking (method weighted-distance) (tie-break id-ascending) (ordered essay-c guide-a clip-b)) (explanations (pick essay-c distance 9 reason closest-balanced-match) (pick guide-a distance 15 reason depth-match) (pick clip-b distance 61 reason novelty-heavy)) (answer recommend-essay-c-then-guide-a))"

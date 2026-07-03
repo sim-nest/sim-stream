@@ -1,0 +1,5 @@
+book = "stream-prelude"
+title = "Stream Prelude"
+summary = "Lisp-facing memory stream operations and stream Cards."
+order = 124
+chapters = ["01-basics"]

@@ -1,0 +1,1 @@
+(quote (stream-audio pcm spec f32 interleaved channels 2 rate 48000))

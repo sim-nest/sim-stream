@@ -1,0 +1,8 @@
+id = "metadata-descriptor"
+title = "Metadata descriptor"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 10
+tags = ["stream", "metadata", "descriptor"]
+requires = ["stream-core-shapes", "codec/lisp"]
