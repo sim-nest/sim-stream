@@ -20,6 +20,7 @@ sim-lib-stream-core = { version = "0.1.0", path = "../sim-lib-stream-core" }
 [dev-dependencies]
 sim-codec = { version = "0.1.0" }
 sim-codec-lisp = { version = "0.1.0" }
+sim-kernel = { version = "0.1.0", features = ["test-support"] }
 
 [features]
 default = []
