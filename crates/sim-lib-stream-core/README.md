@@ -7,9 +7,9 @@ Core stream metadata, packets, envelopes, and buffer values.
 ## Package Metadata
 
 - Manifest: `crates/sim-lib-stream-core/Cargo.toml`
-- Publish: `false`
+- Publish: `true`
 - Targets: `custom-build, lib`
 
 ## Crate Documentation
 
-Core stream metadata, packets, envelopes, and buffer values.
+Core stream envelopes, metadata, packets, and buffer values.

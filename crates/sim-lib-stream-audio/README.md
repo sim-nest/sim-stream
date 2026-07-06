@@ -7,7 +7,7 @@ PCM source and sink adapters for STREAM 6.
 ## Package Metadata
 
 - Manifest: `crates/sim-lib-stream-audio/Cargo.toml`
-- Publish: `false`
+- Publish: `true`
 - Targets: `lib`
 
 ## Crate Documentation
