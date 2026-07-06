@@ -4,6 +4,7 @@ use sim_codec_binary::BinaryCodecLib;
 use sim_kernel::{
     Args, Cx, DefaultFactory, EagerPolicy, Error, Expr, Symbol, eval_fabric_capability,
 };
+use sim_value::build::sym;
 
 use crate::{
     Edge, Graph, Node, PortRef, TopologyConnection, TopologyPatch, apply_topology_patch,
@@ -255,10 +256,6 @@ fn map(entries: Vec<(&str, Expr)>) -> Expr {
             .map(|(key, value)| (sym(key), value))
             .collect(),
     )
-}
-
-fn sym(name: &str) -> Expr {
-    Expr::Symbol(Symbol::new(name))
 }
 
 fn assert_capability(error: Error, expected: sim_kernel::CapabilityName) {

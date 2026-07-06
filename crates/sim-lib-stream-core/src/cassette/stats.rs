@@ -1,7 +1,8 @@
 use sim_kernel::{Error, Expr, Result, Symbol};
+use sim_value::access;
 
 use crate::StreamStats;
-use crate::buffer::{expr_kind, field, string_field};
+use crate::buffer::{expr_kind, string_field};
 
 pub(super) fn stream_stats_expr(stats: &StreamStats) -> Expr {
     Expr::Map(vec![
@@ -63,11 +64,5 @@ fn parse_u64(entries: &[(Expr, Expr)], name: &str) -> Result<u64> {
 }
 
 fn bool_field(entries: &[(Expr, Expr)], name: &str) -> Result<bool> {
-    match field(entries, name)? {
-        Expr::Bool(value) => Ok(*value),
-        other => Err(Error::TypeMismatch {
-            expected: "bool field",
-            found: expr_kind(other),
-        }),
-    }
+    access::entry_required_bool(entries, name, "bool field")
 }

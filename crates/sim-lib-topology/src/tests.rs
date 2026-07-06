@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use sim_kernel::{Cx, DefaultFactory, Error, Expr, NoopEvalPolicy, NumberLiteral, Symbol, Value};
+use sim_value::build::sym;
 
 use crate::{
     Budget, BudgetExhausted, Edge, Graph, Node, PortMode, PortRef, Scheduler, SchedulerMode,
@@ -355,10 +356,6 @@ fn map(entries: Vec<(&str, Expr)>) -> Expr {
             .map(|(key, value)| (sym(key), value))
             .collect(),
     )
-}
-
-fn sym(name: &str) -> Expr {
-    Expr::Symbol(Symbol::new(name))
 }
 
 fn kw(name: &str) -> Expr {

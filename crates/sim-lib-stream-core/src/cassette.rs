@@ -9,6 +9,7 @@
 //! behavior that records, redacts, validates, and round-trips those traces.
 
 use sim_kernel::{Error, Expr, Result, Symbol};
+use sim_value::access;
 
 #[path = "cassette/redaction.rs"]
 mod redaction;
@@ -507,13 +508,7 @@ fn ensure_fields(entries: &[(Expr, Expr)], allowed: &[&str]) -> Result<()> {
 }
 
 fn list_field<'a>(entries: &'a [(Expr, Expr)], name: &str) -> Result<&'a [Expr]> {
-    match field(entries, name)? {
-        Expr::List(items) => Ok(items),
-        other => Err(Error::TypeMismatch {
-            expected: "list field",
-            found: expr_kind(other),
-        }),
-    }
+    access::entry_required_list(entries, name, "list field")
 }
 
 fn symbol_list(entries: &[(Expr, Expr)], name: &str) -> Result<Vec<Symbol>> {
@@ -556,11 +551,5 @@ fn optional_u64_expr(value: Option<u64>) -> Expr {
 }
 
 fn bool_field(entries: &[(Expr, Expr)], name: &str) -> Result<bool> {
-    match field(entries, name)? {
-        Expr::Bool(value) => Ok(*value),
-        other => Err(Error::TypeMismatch {
-            expected: "bool field",
-            found: expr_kind(other),
-        }),
-    }
+    access::entry_required_bool(entries, name, "bool field")
 }

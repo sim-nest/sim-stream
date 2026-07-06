@@ -1,4 +1,5 @@
 use sim_kernel::{Expr, Symbol};
+use sim_value::build::entry;
 
 use crate::{
     BufferPolicy, StreamCassette, StreamDirection, StreamItem, StreamMedia, StreamMetadata,
@@ -118,10 +119,10 @@ fn public_stream_payload_policy_fails_closed_on_sensitive_content() {
 fn cassette_redaction_covers_security_policy_findings() {
     let policy = StreamSecurityPolicy::default();
     let payload = Expr::Map(vec![
-        field("credential", Expr::String("token=abc123".to_owned())),
-        field("path", Expr::String("private-path=session.mid".to_owned())),
-        field("bank", Expr::String("dx7 patch-bank payload".to_owned())),
-        field(
+        entry("credential", Expr::String("token=abc123".to_owned())),
+        entry("path", Expr::String("private-path=session.mid".to_owned())),
+        entry("bank", Expr::String("dx7 patch-bank payload".to_owned())),
+        entry(
             "blob",
             Expr::Bytes(vec![0; policy.remote_limits.max_binary_payload_bytes + 1]),
         ),
@@ -205,8 +206,4 @@ fn diagnostic_security_metadata() -> StreamMetadata {
         Symbol::qualified("clock", "server-frame"),
         BufferPolicy::bounded(2).unwrap(),
     )
-}
-
-fn field(name: &str, value: Expr) -> (Expr, Expr) {
-    (Expr::Symbol(Symbol::new(name)), value)
 }

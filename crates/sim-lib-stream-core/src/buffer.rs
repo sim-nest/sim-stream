@@ -6,10 +6,13 @@
 //! and [`BackpressureOutcome`] (the result a producer observes when it offers a
 //! packet). Each carries a stable `stream/*` symbol so the policy round-trips
 //! through the runtime's symbol and [`Expr`] surfaces. The crate-private
-//! `field`/`string_field`/`symbol_field` helpers read named entries out of an
-//! [`Expr::Map`] and are reused by sibling modules that decode stream values.
+//! `field` helper reads a bare-symbol entry out of an [`Expr::Map`] and is
+//! reused by sibling modules that decode stream values; the typed
+//! `string_field`/`symbol_field` readers are thin wrappers over the shared
+//! `sim_value::access` slice readers.
 
 use sim_kernel::{Error, Expr, Result, Symbol};
+use sim_value::access;
 pub(crate) use sim_value::kind::expr_kind;
 
 /// Result a producer observes when it offers a packet to a buffered stream.
@@ -201,23 +204,11 @@ impl BufferPolicy {
 }
 
 pub(crate) fn string_field<'a>(entries: &'a [(Expr, Expr)], name: &str) -> Result<&'a str> {
-    match field(entries, name)? {
-        Expr::String(value) => Ok(value),
-        other => Err(Error::TypeMismatch {
-            expected: "string field",
-            found: expr_kind(other),
-        }),
-    }
+    access::entry_required_str(entries, name, "string field")
 }
 
 pub(crate) fn symbol_field<'a>(entries: &'a [(Expr, Expr)], name: &str) -> Result<&'a Symbol> {
-    match field(entries, name)? {
-        Expr::Symbol(value) => Ok(value),
-        other => Err(Error::TypeMismatch {
-            expected: "symbol field",
-            found: expr_kind(other),
-        }),
-    }
+    access::entry_required_sym(entries, name, "symbol field")
 }
 
 pub(crate) fn field<'a>(entries: &'a [(Expr, Expr)], name: &str) -> Result<&'a Expr> {

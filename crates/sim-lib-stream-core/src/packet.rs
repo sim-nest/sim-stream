@@ -14,6 +14,7 @@ use std::fmt::Display;
 use std::str::FromStr;
 
 use sim_kernel::{Cx, Datum, DatumStore, Error, Expr, Ref, Result, Symbol};
+use sim_value::access;
 
 use crate::buffer::{expr_kind, field, string_field, symbol_field};
 use crate::metadata::StreamMedia;
@@ -405,13 +406,7 @@ where
 }
 
 pub(super) fn list_field<'a>(entries: &'a [(Expr, Expr)], name: &str) -> Result<&'a [Expr]> {
-    match field(entries, name)? {
-        Expr::List(items) => Ok(items),
-        other => Err(Error::TypeMismatch {
-            expected: "list field",
-            found: expr_kind(other),
-        }),
-    }
+    access::entry_required_list(entries, name, "list field")
 }
 
 fn bytes_field<'a>(entries: &'a [(Expr, Expr)], name: &str) -> Result<&'a [u8]> {

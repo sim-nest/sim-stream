@@ -6,6 +6,7 @@ use sim_lib_stream_core::{
     BufferPolicy, MidiPacket, MidiPacketEvent, StreamDirection, StreamItem, StreamMedia,
     StreamMetadata, StreamPacket, StreamValue, publish_metadata_claims,
 };
+use sim_value::access;
 use sim_value::kind::expr_kind;
 
 use crate::handle::StreamHandle;
@@ -339,13 +340,7 @@ fn field<'a>(entries: &'a [(Expr, Expr)], name: &str) -> Result<&'a Expr> {
 }
 
 fn symbol_field<'a>(entries: &'a [(Expr, Expr)], name: &str) -> Result<&'a Symbol> {
-    match field(entries, name)? {
-        Expr::Symbol(symbol) => Ok(symbol),
-        other => Err(Error::TypeMismatch {
-            expected: "symbol field",
-            found: expr_kind(other),
-        }),
-    }
+    access::entry_required_sym(entries, name, "symbol field")
 }
 
 fn symbol_or_string_field(entries: &[(Expr, Expr)], name: &str) -> Result<Symbol> {

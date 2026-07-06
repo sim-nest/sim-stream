@@ -3,6 +3,7 @@
 
 use sim_citizen_derive::Citizen;
 use sim_kernel::{Error, Expr, Result, Symbol};
+use sim_value::build::entry;
 
 /// Citizen object wrapping a validated `.simtopo` package source string.
 #[derive(Clone, Debug, PartialEq, Citizen)]
@@ -73,8 +74,8 @@ impl TopologyNodeDescriptor {
 impl Default for TopologyNodeDescriptor {
     fn default() -> Self {
         Self::from_expr(Expr::Map(vec![
-            field("id", Expr::Symbol(Symbol::new("citizen-node"))),
-            field("verb", Expr::Symbol(Symbol::new("wire"))),
+            entry("id", Expr::Symbol(Symbol::new("citizen-node"))),
+            entry("verb", Expr::Symbol(Symbol::new("wire"))),
         ]))
         .expect("default topology node descriptor should be valid")
     }
@@ -96,8 +97,8 @@ impl TopologyEdgeDescriptor {
 impl Default for TopologyEdgeDescriptor {
     fn default() -> Self {
         Self::from_expr(Expr::Map(vec![
-            field("from", Expr::Symbol(Symbol::new("citizen-node/out"))),
-            field("to", Expr::Symbol(Symbol::new("citizen-out/in"))),
+            entry("from", Expr::Symbol(Symbol::new("citizen-node/out"))),
+            entry("to", Expr::Symbol(Symbol::new("citizen-out/in"))),
         ]))
         .expect("default topology edge descriptor should be valid")
     }
@@ -196,8 +197,4 @@ fn field_name(expr: &Expr) -> Option<String> {
         Expr::String(value) => Some(value.clone()),
         _ => None,
     }
-}
-
-fn field(name: &str, value: Expr) -> (Expr, Expr) {
-    (Expr::Symbol(Symbol::new(name.to_owned())), value)
 }

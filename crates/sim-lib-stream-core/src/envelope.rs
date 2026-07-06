@@ -22,6 +22,7 @@ mod profile;
 mod ref_codec;
 
 use sim_kernel::{Error, Expr, Result, Symbol, Tick};
+use sim_value::access;
 
 use crate::buffer::{expr_kind, field, string_field, symbol_field};
 use crate::{StreamDirection, StreamItem, StreamMedia, StreamMetadata, StreamPacket};
@@ -549,13 +550,7 @@ fn symbol_list(entries: &[(Expr, Expr)], name: &str) -> Result<Vec<Symbol>> {
 }
 
 fn list_field<'a>(entries: &'a [(Expr, Expr)], name: &str) -> Result<&'a [Expr]> {
-    match field(entries, name)? {
-        Expr::List(items) => Ok(items),
-        other => Err(Error::TypeMismatch {
-            expected: "list field",
-            found: expr_kind(other),
-        }),
-    }
+    access::entry_required_list(entries, name, "list field")
 }
 
 fn ensure_fields(entries: &[(Expr, Expr)], allowed: &[&str]) -> Result<()> {
