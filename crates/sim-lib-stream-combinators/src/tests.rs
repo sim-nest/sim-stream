@@ -13,10 +13,10 @@ use sim_lib_stream_core::{
 };
 
 use crate::{
-    SeekTarget, Stream, clock_convert, fan, filter_data_kind, filter_data_shape, identity, map,
-    map_data_expr, merge_by_clock, pipe, record_bang, record_cassette_bang, record_ledger_slice,
-    replay, replay_cassette, run_bang, seek, stream_cell, stream_window_data_kind, tap_diagnostics,
-    window_by_count,
+    SeekTarget, Stream, StreamNode, clock_convert, fan, filter_data_kind, filter_data_shape,
+    identity, map, map_data_expr, merge_by_clock, pipe, record_bang, record_bang_bounded,
+    record_cassette_bang, record_ledger_slice, replay, replay_cassette, run_bang, seek,
+    stream_cell, stream_window_data_kind, tap_diagnostics, window_by_count,
 };
 
 fn metadata() -> StreamMetadata {
@@ -390,6 +390,45 @@ fn record_ledger_slice_preserves_data_payload_equality() {
 
     assert_eq!(recording.items(), expected.as_slice());
     assert_eq!(recording.replay().take_packets(8).unwrap(), expected);
+}
+
+#[test]
+fn record_bang_bounded_returns_at_the_bound_on_a_live_source() {
+    let source = Stream::new(InfiniteSource {
+        metadata: metadata(),
+    });
+
+    let err = record_bang_bounded(&source, 16).unwrap_err();
+
+    assert!(format!("{err}").contains("cannot record more than 16"));
+}
+
+#[test]
+fn record_bang_bounded_captures_a_finite_source_within_the_bound() {
+    let items = vec![packet("one"), packet("two")];
+
+    let recording = record_bang_bounded(&Stream::pull(metadata(), items.clone()), 16).unwrap();
+
+    assert_eq!(recording.items(), items.as_slice());
+}
+
+/// A never-ending diagnostic source that never reaches `done`.
+struct InfiniteSource {
+    metadata: StreamMetadata,
+}
+
+impl StreamNode for InfiniteSource {
+    fn metadata(&self) -> &StreamMetadata {
+        &self.metadata
+    }
+
+    fn next_packet(&self) -> sim_kernel::Result<Option<StreamItem>> {
+        Ok(Some(packet("tick")))
+    }
+
+    fn is_done(&self) -> sim_kernel::Result<bool> {
+        Ok(false)
+    }
 }
 
 fn packet(message: &str) -> StreamItem {

@@ -135,12 +135,38 @@ impl SeekTarget {
     }
 }
 
+/// Default ceiling on the packets captured by the unbounded recorders.
+///
+/// [`record_bang`] and [`record_cassette_bang`] drain a source to `done`; a live
+/// or unbounded source never reaches `done`, so they cap capture at this many
+/// packets and error rather than looping forever. Use [`record_bang_bounded`] /
+/// [`record_cassette_bang_bounded`] to choose an explicit bound for a source
+/// that may not terminate.
+pub const DEFAULT_RECORD_ITEM_LIMIT: usize = 1 << 20;
+
 /// Drains `source` to `done` and captures it as a [`StreamRecording`].
 ///
-/// Errors if the stream is exhausted without reaching its terminal `done`.
+/// Errors if the stream is exhausted without reaching its terminal `done`, or if
+/// it yields more than [`DEFAULT_RECORD_ITEM_LIMIT`] packets (a guard against a
+/// live or unbounded source that never reaches `done`).
 pub fn record_bang(source: &Stream) -> Result<StreamRecording> {
+    record_bang_bounded(source, DEFAULT_RECORD_ITEM_LIMIT)
+}
+
+/// Drains `source` to `done`, capturing at most `max_items` packets.
+///
+/// Like [`record_bang`] but with a caller-chosen bound. A live or unbounded
+/// source never reaches `done`; recording stops and returns an error once it has
+/// pulled `max_items` packets, so the call cannot loop forever. Prefer this over
+/// [`record_bang`] whenever the source may not terminate.
+pub fn record_bang_bounded(source: &Stream, max_items: usize) -> Result<StreamRecording> {
     let mut items = Vec::new();
     while let Some(item) = source.next_packet()? {
+        if items.len() >= max_items {
+            return Err(Error::Eval(format!(
+                "cannot record more than {max_items} packets; source may be live or unbounded"
+            )));
+        }
         items.push(item);
     }
     if !source.is_done()? {
@@ -157,8 +183,22 @@ pub fn replay(recording: &StreamRecording) -> Stream {
 }
 
 /// Records `source` to completion and serializes it to a cassette for `profile`.
+///
+/// Capture is bounded by [`DEFAULT_RECORD_ITEM_LIMIT`]; see [`record_bang`].
 pub fn record_cassette_bang(source: &Stream, profile: TransportProfile) -> Result<StreamCassette> {
     record_bang(source)?.cassette(profile)
+}
+
+/// Records at most `max_items` packets of `source` and serializes them.
+///
+/// Bounded twin of [`record_cassette_bang`] for a live or unbounded source; see
+/// [`record_bang_bounded`].
+pub fn record_cassette_bang_bounded(
+    source: &Stream,
+    profile: TransportProfile,
+    max_items: usize,
+) -> Result<StreamCassette> {
+    record_bang_bounded(source, max_items)?.cassette(profile)
 }
 
 /// Rebuilds a replayable stream from a serialized transport `cassette`.

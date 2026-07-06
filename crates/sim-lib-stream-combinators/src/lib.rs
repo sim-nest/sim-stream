@@ -28,8 +28,9 @@ pub use ops::{
     tap_stage, window_by_count, window_by_count_stage,
 };
 pub use recording::{
-    SeekTarget, StreamRecording, record_bang, record_cassette_bang, record_events,
-    record_ledger_run, record_ledger_slice, replay, replay_cassette, seek,
+    DEFAULT_RECORD_ITEM_LIMIT, SeekTarget, StreamRecording, record_bang, record_bang_bounded,
+    record_cassette_bang, record_cassette_bang_bounded, record_events, record_ledger_run,
+    record_ledger_slice, replay, replay_cassette, seek,
 };
 pub use stream::{Stream, StreamNode};
 

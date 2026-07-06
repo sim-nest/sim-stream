@@ -1,4 +1,7 @@
-use std::{collections::VecDeque, sync::Mutex};
+use std::sync::{
+    Arc, Mutex,
+    atomic::{AtomicUsize, Ordering},
+};
 
 use sim_kernel::{Error, Ref, Result, Symbol};
 use sim_lib_stream_core::{
@@ -23,22 +26,42 @@ pub fn resample_pcm(source: Stream, input_hz: u32, output_hz: u32) -> Result<Str
     }))
 }
 
-/// Reorders packets by `clock` tick, tolerating up to `max_late_packets`.
+/// Reorders packets by `clock` tick within a bounded latency window.
 ///
-/// The buffer drains the source, sorts packets by their tick index on `clock`
-/// (stable on ties), and replays them in order. With `max_late_packets` of `0`
-/// any out-of-order packet is dropped rather than reordered.
+/// The buffer keeps an online reordering window of `max_late_packets + 1`
+/// packets: it pulls only enough of `source` to fill that window (never draining
+/// a live source to its end), then emits the lowest-tick packet, breaking ties
+/// by arrival order so equal ticks stay stable. A packet whose tick falls below
+/// the last emitted tick has arrived more than `max_late_packets` positions
+/// behind the highest accepted tick; it is dropped and counted rather than
+/// reordered. With `max_late_packets` of `0` the window is a single packet, so
+/// any out-of-order packet is dropped.
 pub fn jitter_buffer(source: Stream, clock: Symbol, max_late_packets: u32) -> Stream {
+    jitter_buffer_with_drops(source, clock, max_late_packets).0
+}
+
+/// Builds a jitter buffer alongside a shared counter of late-dropped packets.
+///
+/// The public [`jitter_buffer`] wraps this and discards the counter; tests read
+/// the counter to assert the positive-lateness bound.
+pub(crate) fn jitter_buffer_with_drops(
+    source: Stream,
+    clock: Symbol,
+    max_late_packets: u32,
+) -> (Stream, Arc<AtomicUsize>) {
     let descriptor = DomainBridgeDescriptor::jitter_buffer(max_late_packets);
     let metadata = source.metadata().clone();
-    Stream::new(JitterBufferNode {
+    let late_dropped = Arc::new(AtomicUsize::new(0));
+    let stream = Stream::new(JitterBufferNode {
         source,
         metadata,
         clock,
         max_late_packets,
-        queue: Mutex::new(None),
+        state: Mutex::new(JitterBufferState::default()),
+        late_dropped: Arc::clone(&late_dropped),
         _descriptor: descriptor,
-    })
+    });
+    (stream, late_dropped)
 }
 
 /// Records a `frames`-frame latency-compensation delay over the stream.
@@ -106,8 +129,22 @@ struct JitterBufferNode {
     metadata: StreamMetadata,
     clock: Symbol,
     max_late_packets: u32,
-    queue: Mutex<Option<VecDeque<StreamItem>>>,
+    state: Mutex<JitterBufferState>,
+    late_dropped: Arc<AtomicUsize>,
     _descriptor: DomainBridgeDescriptor,
+}
+
+/// Online reordering window shared behind the node's mutex.
+#[derive(Default)]
+struct JitterBufferState {
+    /// Pending packets not yet emitted, each tagged with its arrival ordinal.
+    window: Vec<(usize, StreamItem)>,
+    /// Monotonic arrival counter; breaks ties in tick order stably.
+    next_ordinal: usize,
+    /// Highest tick emitted so far; a lower incoming tick is late.
+    last_emitted: Option<Ref>,
+    /// Whether the upstream source has reached its terminal `done`.
+    source_done: bool,
 }
 
 impl StreamNode for JitterBufferNode {
@@ -116,26 +153,93 @@ impl StreamNode for JitterBufferNode {
     }
 
     fn next_packet(&self) -> Result<Option<StreamItem>> {
-        let mut queue = self
-            .queue
+        let mut state = self
+            .state
             .lock()
-            .map_err(|_| Error::PoisonedLock("jitter-buffer queue"))?;
-        if queue.is_none() {
-            *queue = Some(VecDeque::from(load_jitter_buffer(
-                &self.source,
-                &self.clock,
-                self.max_late_packets,
-            )?));
+            .map_err(|_| Error::PoisonedLock("jitter-buffer state"))?;
+        self.fill_window(&mut state)?;
+        let target = self.max_late_packets as usize + 1;
+        if state.window.len() < target && !state.source_done {
+            // Live source without enough ordering context yet: emit nothing.
+            return Ok(None);
         }
-        Ok(queue.as_mut().and_then(VecDeque::pop_front))
+        Ok(self.pop_next(&mut state))
     }
 
     fn is_done(&self) -> Result<bool> {
-        let queue = self
-            .queue
+        let state = self
+            .state
             .lock()
-            .map_err(|_| Error::PoisonedLock("jitter-buffer queue"))?;
-        Ok(queue.as_ref().is_some_and(VecDeque::is_empty) || self.source.is_done()?)
+            .map_err(|_| Error::PoisonedLock("jitter-buffer state"))?;
+        Ok(state.window.is_empty() && (state.source_done || self.source.is_done()?))
+    }
+}
+
+impl JitterBufferNode {
+    /// Pulls upstream packets until the ordering window is full or the source
+    /// signals no packet is currently available. Never drains to end of source.
+    fn fill_window(&self, state: &mut JitterBufferState) -> Result<()> {
+        let target = self.max_late_packets as usize + 1;
+        while !state.source_done && state.window.len() < target {
+            match self.source.next_packet()? {
+                Some(item) => self.accept_or_drop(state, item),
+                None => {
+                    if self.source.is_done()? {
+                        state.source_done = true;
+                    }
+                    break;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Buffers `item`, or drops it (and counts it) when it is more than
+    /// `max_late_packets` behind the highest accepted tick.
+    fn accept_or_drop(&self, state: &mut JitterBufferState, item: StreamItem) {
+        let key = tick_key(&item, &self.clock);
+        let late = match (&key, &state.last_emitted) {
+            (Some(key), Some(last)) => key < last,
+            _ => false,
+        };
+        if late {
+            self.late_dropped.fetch_add(1, Ordering::Relaxed);
+            return;
+        }
+        let ordinal = state.next_ordinal;
+        state.next_ordinal = state.next_ordinal.saturating_add(1);
+        state.window.push((ordinal, item));
+    }
+
+    /// Removes and returns the lowest-tick buffered packet, advancing the
+    /// highest-emitted marker. Ties are broken by arrival order.
+    fn pop_next(&self, state: &mut JitterBufferState) -> Option<StreamItem> {
+        if state.window.is_empty() {
+            return None;
+        }
+        let mut best = 0usize;
+        for index in 1..state.window.len() {
+            if self.precedes(&state.window[index], &state.window[best]) {
+                best = index;
+            }
+        }
+        let (_, item) = state.window.remove(best);
+        if let Some(key) = tick_key(&item, &self.clock) {
+            state.last_emitted = Some(key);
+        }
+        Some(item)
+    }
+
+    /// Reports whether `left` should be emitted before `right`: lower tick
+    /// first, ties (and keyless packets) by arrival order.
+    fn precedes(&self, left: &(usize, StreamItem), right: &(usize, StreamItem)) -> bool {
+        match (
+            tick_key(&left.1, &self.clock),
+            tick_key(&right.1, &self.clock),
+        ) {
+            (Some(left_key), Some(right_key)) => (left_key, left.0) < (right_key, right.0),
+            _ => left.0 < right.0,
+        }
     }
 }
 
@@ -212,43 +316,6 @@ fn resample_interleaved<T: Copy>(
         }
     }
     out
-}
-
-fn load_jitter_buffer(
-    source: &Stream,
-    clock: &Symbol,
-    max_late_packets: u32,
-) -> Result<Vec<StreamItem>> {
-    let mut highest_key = None;
-    let mut indexed = Vec::new();
-    let mut ordinal = 0usize;
-    while let Some(item) = source.next_packet()? {
-        let key = tick_key(&item, clock);
-        let late = highest_key
-            .as_ref()
-            .zip(key.as_ref())
-            .is_some_and(|(highest, key)| key < highest);
-        if late && max_late_packets == 0 {
-            continue;
-        }
-        if key
-            .as_ref()
-            .zip(highest_key.as_ref())
-            .is_some_and(|(key, highest)| key > highest)
-            || highest_key.is_none()
-        {
-            highest_key = key.clone();
-        }
-        indexed.push((ordinal, item));
-        ordinal = ordinal.saturating_add(1);
-    }
-    indexed.sort_by(|(left_index, left), (right_index, right)| {
-        match (tick_key(left, clock), tick_key(right, clock)) {
-            (Some(left), Some(right)) => left.cmp(&right).then(left_index.cmp(right_index)),
-            _ => left_index.cmp(right_index),
-        }
-    });
-    Ok(indexed.into_iter().map(|(_, item)| item).collect())
 }
 
 fn tick_key(item: &StreamItem, clock: &Symbol) -> Option<Ref> {
