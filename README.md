@@ -1,11 +1,42 @@
 # sim-stream
 
-sim-stream is a repository in the SIM constellation. SIM is an expandable Rust
-runtime built around a small protocol kernel plus a large set of loadable
-libraries: the kernel defines contracts, libraries provide behavior. This repo
-holds two library families that sit on top of `sim-kernel` -- a streaming
-substrate (in-memory stream values, clocks, combinators, and audio adapters)
-and the rank library for coordinate, order, and search spaces.
+sim-stream gives you a checked, packet-by-packet model of changing data --
+audio, MIDI, clocks, and any timed stream -- that you compose and run inside a
+SIM runtime.
+
+SIM is a small Rust protocol kernel plus loadable libraries; the `sim` CLI
+installs with `cargo install sim-run`, and sim-say is the full walkthrough.
+sim-stream is a library set, so you reach for it from Rust.
+
+## Example
+
+Describe a validated PCM audio format -- the immutable contract every buffer,
+source, and sink in the substrate shares:
+
+```bash
+cargo add sim-lib-stream-audio
+```
+
+```rust
+use sim_lib_stream_audio::{PcmSampleFormat, PcmSpec};
+
+// Rejects a zero channel count or zero sample rate, so a value that
+// constructs is always a usable audio configuration.
+let spec = PcmSpec::f32(2, 48_000)?;
+assert_eq!(spec.channels(), 2);
+assert_eq!(spec.sample_rate_hz(), 48_000);
+assert_eq!(spec.sample_format(), PcmSampleFormat::F32);
+# Ok::<(), sim_kernel::Error>(())
+```
+
+(from the passing doctest in
+`crates/sim-lib-stream-audio/src/spec.rs:14`)
+
+## How it works
+
+This repo holds two library families that sit on top of `sim-kernel` -- a
+streaming substrate (in-memory stream values, clocks, combinators, and audio
+adapters) and the rank library for coordinate, order, and search spaces.
 
 The streaming libraries keep media I/O, clock math, and stream composition in
 library space: kernel events carry only `Tick` values and datum refs, while the
