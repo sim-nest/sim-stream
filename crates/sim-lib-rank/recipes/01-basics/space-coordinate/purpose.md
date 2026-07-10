@@ -1,4 +1,4 @@
-# Space and coordinate descriptors
+# Rank space coordinates (descriptor)
 
-This recipe names the portable rank value vocabulary: spaces, nodes, natural
-ordinals, and coordinates. Use it before adding search or scatter behavior.
+Documents the rank space's coordinate system (unit, nat, ordinal node coordinates). It describes the
+structure of the ranking space -- metadata, not an expression that reduces to a value.

@@ -1,9 +1,5 @@
-# Embodied Intelligence Agent
+# Embodied Intelligence (descriptor)
 
-This recipe records deterministic embodied control as SIM data. The setup
-quotes a synthetic mobile base, a slow fake-runner strategy loop, a fast
-deterministic controller, a binary constraint envelope, and topology-level
-failure propagation.
-
-The fixture is local and synthetic. It performs no live actuation; the actuator
-gate failure propagates to simulated motors and selects a stable safe state.
+A deterministic, offline synthetic trace of the embodied intelligence pattern. It demonstrates the shape of
+the pipeline over synthetic fixtures with no live model, network, or device; those effects run
+outside the cookbook sandbox eval stack, so the trace is documented rather than executed live.

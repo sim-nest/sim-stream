@@ -1,4 +1,4 @@
-# Rank-backed retrieve
+# Rank retrieval (descriptor)
 
-This recipe stores deterministic embedding vectors in memory, queries them with
-cosine similarity, and returns top-k neighbors with stable id tie-breaks.
+Documents rank's embedding-store retrieval: cosine similarity, top-k over a vector store. Similarity
+search runs outside the cookbook sandbox eval stack, so the retrieval is documented rather than run.

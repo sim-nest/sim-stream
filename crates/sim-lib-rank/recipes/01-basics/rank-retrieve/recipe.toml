@@ -4,5 +4,5 @@ codec = "lisp"
 setup = "setup.siml"
 purpose = "purpose.md"
 order = 20
-tags = ["rank", "retrieve", "embedding"]
+tags = ["rank", "retrieve", "embedding", "sandbox-descriptor"]
 requires = ["rank"]

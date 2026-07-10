@@ -1,4 +1,4 @@
-# Tiny data-authored graph
+# Stream topology graph (descriptor)
 
-This recipe shows topology as plain graph data: two nodes and one wire. It is
-the smallest shape to validate before package parsing or replay.
+Documents a tiny stream topology graph: a doc-flow of nodes and verb edges. It is a graph descriptor,
+not an expression the sandbox eval stack reduces to a value.

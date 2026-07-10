@@ -1,4 +1,4 @@
-# PCM spec descriptor
+# PCM audio stream spec (descriptor)
 
-This recipe keeps PCM I/O as data: sample format, channel count, layout, and
-rate. It is suitable for memory sources and sinks.
+Documents a PCM audio stream spec (f32, interleaved, channel count). It is an audio-format descriptor;
+the sample stream flows through the stream fabric outside the cookbook sandbox eval stack.

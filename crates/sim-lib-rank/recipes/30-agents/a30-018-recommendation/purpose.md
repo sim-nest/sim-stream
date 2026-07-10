@@ -1,8 +1,5 @@
-# Recommendation Agent
+# Recommendation (descriptor)
 
-This recipe records deterministic recommendation ranking as SIM data. The setup
-quotes item coordinates, user preferences, a rank ordering, and the explanation
-records for each selected item.
-
-The fixture is local and synthetic. It gives recipe browsers a stable
-coordinate-space recommendation trace with deterministic tie-breaking.
+A deterministic, offline synthetic trace of the recommendation pattern. It demonstrates the shape of
+the pipeline over synthetic fixtures with no live model, network, or device; those effects run
+outside the cookbook sandbox eval stack, so the trace is documented rather than executed live.

@@ -1,4 +1,5 @@
-# Pipeline stage descriptor
+# Stream combinators (descriptor)
 
-This recipe lists the in-memory stream stages that compose packet spines:
-mapping, filtering, windowing, recording, and replay.
+Documents the stream combinators (pipe, map, filter, window). They apply function arguments over a
+flowing stream, which the cookbook sandbox eval stack does not run; live core list access (car/cdr/
+cons) is shown by the sim-lib-core quote-list-basics recipe.

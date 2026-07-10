@@ -4,5 +4,5 @@ codec = "lisp"
 setup = "setup.siml"
 purpose = "purpose.md"
 order = 10
-tags = ["stream", "audio", "pcm"]
+tags = ["stream", "audio", "pcm", "sandbox-descriptor"]
 requires = ["stream-audio", "codec/lisp"]

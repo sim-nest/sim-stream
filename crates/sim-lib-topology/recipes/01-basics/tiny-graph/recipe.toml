@@ -4,5 +4,5 @@ codec = "lisp"
 setup = "setup.siml"
 purpose = "purpose.md"
 order = 10
-tags = ["topology", "graph", "descriptor"]
+tags = ["topology", "graph", "descriptor", "sandbox-descriptor"]
 requires = ["topology", "codec/lisp"]
