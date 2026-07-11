@@ -8,7 +8,7 @@ Data-driven topology engine.
 
 - Manifest: `crates/sim-lib-topology/Cargo.toml`
 - Publish: `true`
-- Targets: `lib`
+- Targets: `custom-build, lib`
 
 ## Crate Documentation
 

@@ -110,5 +110,9 @@ pub use registry::{
 pub use replay::{TopologyCounterfactual, counterfactual_replay, replay_report};
 pub use site::{TopologyConnection, connection_from_graph};
 
+/// Cookbook recipes for this lib, embedded at build time.
+pub static RECIPES: sim_cookbook::EmbeddedDir =
+    include!(concat!(env!("OUT_DIR"), "/cookbook_recipes.rs"));
+
 #[cfg(test)]
 mod tests;

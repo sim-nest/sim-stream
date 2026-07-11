@@ -11,6 +11,7 @@
       "readme": "crates/sim-lib-rank/README.md",
       "root": "crates/sim-lib-rank",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },
@@ -23,6 +24,7 @@
       "readme": "crates/sim-lib-stream-audio/README.md",
       "root": "crates/sim-lib-stream-audio",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },
@@ -35,6 +37,7 @@
       "readme": "crates/sim-lib-stream-clock/README.md",
       "root": "crates/sim-lib-stream-clock",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },
@@ -47,6 +50,7 @@
       "readme": "crates/sim-lib-stream-combinators/README.md",
       "root": "crates/sim-lib-stream-combinators",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },
@@ -72,6 +76,7 @@
       "readme": "crates/sim-lib-stream-prelude/README.md",
       "root": "crates/sim-lib-stream-prelude",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },
@@ -84,6 +89,7 @@
       "readme": "crates/sim-lib-topology/README.md",
       "root": "crates/sim-lib-topology",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },

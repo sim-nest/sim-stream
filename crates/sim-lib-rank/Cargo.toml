@@ -1,6 +1,6 @@
 [package]
 name = "sim-lib-rank"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "MPL-2.0"
 description = "RANK 6 coordinate, codec, order, search, and optional domain spaces."
@@ -10,6 +10,7 @@ repository = "https://github.com/sim-nest/sim-stream"
 homepage = "https://github.com/sim-nest/sim-stream"
 
 [dependencies]
+sim-cookbook = { version = "0.1.0" }
 num-bigint = "0.4"
 sim-citizen = { version = "0.1.0" }
 sim-codec-binary = { optional = true, version = "0.1.0" }
@@ -32,3 +33,6 @@ rank-scatter = []
 
 [lints]
 workspace = true
+
+[build-dependencies]
+sim-cookbook = { version = "0.1.0" }

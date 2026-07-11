@@ -8,7 +8,7 @@ Lisp-facing STREAM 6 prelude for memory streams.
 
 - Manifest: `crates/sim-lib-stream-prelude/Cargo.toml`
 - Publish: `true`
-- Targets: `lib`
+- Targets: `custom-build, lib`
 
 ## Crate Documentation
 

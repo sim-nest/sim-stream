@@ -8,7 +8,7 @@ Clock charts and tick conversion helpers for STREAM 6.
 
 - Manifest: `crates/sim-lib-stream-clock/Cargo.toml`
 - Publish: `true`
-- Targets: `lib`
+- Targets: `custom-build, lib`
 
 ## Crate Documentation
 
