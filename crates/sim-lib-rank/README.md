@@ -8,7 +8,7 @@ RANK 6 coordinate, codec, order, search, and optional domain spaces.
 
 - Manifest: `crates/sim-lib-rank/Cargo.toml`
 - Publish: `true`
-- Targets: `lib`
+- Targets: `custom-build, lib`
 
 ## Crate Documentation
 

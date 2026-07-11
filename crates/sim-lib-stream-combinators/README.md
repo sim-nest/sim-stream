@@ -8,7 +8,7 @@ Lazy in-memory stream combinators for STREAM 6.
 
 - Manifest: `crates/sim-lib-stream-combinators/Cargo.toml`
 - Publish: `true`
-- Targets: `lib`
+- Targets: `custom-build, lib`
 
 ## Crate Documentation
 
