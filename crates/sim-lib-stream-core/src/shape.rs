@@ -7,19 +7,31 @@
 //! [`Lib`] that exports one named shape per stream type, and
 //! [`install_stream_core_shapes_lib`] loads it idempotently into a [`Cx`].
 //!
-//! Each registered shape is a `DocumentedShape` that delegates all matching
-//! to the kernel's total [`AnyShape`] and contributes only descriptive
-//! [`ShapeDoc`] metadata; the `stream_*_shape_symbol` accessors expose the
-//! stable [`Symbol`] under which each type's shape is registered.
+//! Each registered shape is a `DocumentedShape` that delegates matching to a
+//! structural shape and contributes descriptive [`ShapeDoc`] metadata; the
+//! `stream_*_shape_symbol` accessors expose the stable [`Symbol`] under which
+//! each type's shape is registered.
 
 use std::sync::Arc;
 
 use sim_kernel::{
-    AbiVersion, Cx, Export, Lib, LibManifest, LibTarget, Linker, Result, Symbol, Version,
+    AbiVersion, Cx, Export, Expr, Lib, LibManifest, LibTarget, Linker, Result, ShapeRef, Symbol,
+    Value, Version,
 };
-use sim_shape::{AnyShape, Shape, ShapeDoc, shape_value};
+use sim_shape::{Shape, ShapeDoc, ShapeMatch, shape_value};
+
+#[path = "shape/structural.rs"]
+mod structural;
+
+use structural::{
+    backpressure_shape, buffer_policy_shape, capability_shape, clock_domain_shape, clock_shape,
+    data_packet_shape, diagnostic_shape, envelope_shape, latency_class_shape, media_shape,
+    metadata_shape, packet_shape, tempo_shape,
+};
 
 const STREAM_CORE_SHAPES_LIB_ID: &str = "stream-core-shapes";
+
+type ShapeSpec = (Symbol, &'static str, Vec<&'static str>, Arc<dyn Shape>);
 
 /// Loadable library that registers the stream-core types as kernel shapes.
 ///
@@ -40,7 +52,7 @@ impl Lib for StreamCoreShapesLib {
             capabilities: Vec::new(),
             exports: shape_specs()
                 .into_iter()
-                .map(|(symbol, _, _)| Export::Shape {
+                .map(|(symbol, _, _, _)| Export::Shape {
                     symbol,
                     shape_id: None,
                 })
@@ -49,10 +61,10 @@ impl Lib for StreamCoreShapesLib {
     }
 
     fn load(&self, _cx: &mut sim_kernel::LoadCx, linker: &mut Linker<'_>) -> Result<()> {
-        for (symbol, name, details) in shape_specs() {
+        for (symbol, name, details, inner) in shape_specs() {
             linker.shape_value(
                 symbol.clone(),
-                shape_value(symbol, Arc::new(DocumentedShape::new(name, details))),
+                shape_value(symbol, Arc::new(DocumentedShape::new(name, details, inner))),
             )?;
         }
         Ok(())
@@ -74,7 +86,7 @@ pub fn install_stream_core_shapes_lib(cx: &mut Cx) -> Result<()> {
     cx.load_lib(&StreamCoreShapesLib).map(|_| ())
 }
 
-fn shape_specs() -> Vec<(Symbol, &'static str, Vec<&'static str>)> {
+fn shape_specs() -> Vec<ShapeSpec> {
     vec![
         (
             stream_metadata_shape_symbol(),
@@ -83,6 +95,7 @@ fn shape_specs() -> Vec<(Symbol, &'static str, Vec<&'static str>)> {
                 "stream metadata read-construct surface",
                 "fields: id, media, direction, clock, buffer",
             ],
+            metadata_shape(),
         ),
         (
             stream_envelope_shape_symbol(),
@@ -91,6 +104,7 @@ fn shape_specs() -> Vec<(Symbol, &'static str, Vec<&'static str>)> {
                 "versioned stream packet envelope",
                 "fields: stream id, packet id, media, direction, sequence, ticks, primary clock domain, clock domains, profile, diagnostics, packet",
             ],
+            envelope_shape(),
         ),
         (
             stream_media_shape_symbol(),
@@ -99,6 +113,7 @@ fn shape_specs() -> Vec<(Symbol, &'static str, Vec<&'static str>)> {
                 "stream media symbol used by metadata",
                 "known media include pcm, midi, diagnostic, and data",
             ],
+            media_shape(),
         ),
         (
             stream_clock_domain_shape_symbol(),
@@ -107,6 +122,7 @@ fn shape_specs() -> Vec<(Symbol, &'static str, Vec<&'static str>)> {
                 "shared timing vocabulary for envelopes, stream descriptors, and placement",
                 "known domains include sample, block, control, midi-tick, wall, transport, server-frame, browser-frame, trace-step, and job",
             ],
+            clock_domain_shape(),
         ),
         (
             stream_latency_class_shape_symbol(),
@@ -115,6 +131,7 @@ fn shape_specs() -> Vec<(Symbol, &'static str, Vec<&'static str>)> {
                 "shared latency vocabulary for streams and placement",
                 "known classes include offline-render, block-local, interactive, sample-exact, buffered-preview, collab-bardelay, and remote-collaboration",
             ],
+            latency_class_shape(),
         ),
         (
             stream_capability_shape_symbol(),
@@ -123,6 +140,7 @@ fn shape_specs() -> Vec<(Symbol, &'static str, Vec<&'static str>)> {
                 "stream transport capability flags",
                 "known flags include exact, deterministic, realtime, bounded, remote, replayable, preview, persistent, resumable, and lossy",
             ],
+            capability_shape(),
         ),
         (
             stream_backpressure_shape_symbol(),
@@ -131,6 +149,7 @@ fn shape_specs() -> Vec<(Symbol, &'static str, Vec<&'static str>)> {
                 "shared stream queue outcome vocabulary",
                 "known outcomes include accepted, dropped-newest, dropped-oldest, blocked, timed-out, rejected, and closed",
             ],
+            backpressure_shape(),
         ),
         (
             stream_clock_shape_symbol(),
@@ -139,6 +158,7 @@ fn shape_specs() -> Vec<(Symbol, &'static str, Vec<&'static str>)> {
                 "clock chart descriptor shared by frame and MIDI indexes",
                 "kernel stream events still carry KERNEL 6 Tick values",
             ],
+            clock_shape(),
         ),
         (
             stream_tempo_shape_symbol(),
@@ -147,6 +167,7 @@ fn shape_specs() -> Vec<(Symbol, &'static str, Vec<&'static str>)> {
                 "tempo map descriptor for MIDI clock conversion",
                 "segments require a tick-zero anchor and increasing ticks",
             ],
+            tempo_shape(),
         ),
         (
             stream_buffer_policy_shape_symbol(),
@@ -155,6 +176,7 @@ fn shape_specs() -> Vec<(Symbol, &'static str, Vec<&'static str>)> {
                 "bounded stream buffer policy",
                 "capacity plus overflow behavior map",
             ],
+            buffer_policy_shape(),
         ),
         (
             stream_packet_shape_symbol(),
@@ -163,6 +185,7 @@ fn shape_specs() -> Vec<(Symbol, &'static str, Vec<&'static str>)> {
                 "tagged packet map for PCM, MIDI, diagnostics, and data",
                 "codec round trips preserve packet tags and payload fields",
             ],
+            packet_shape(),
         ),
         (
             stream_data_packet_shape_symbol(),
@@ -171,6 +194,7 @@ fn shape_specs() -> Vec<(Symbol, &'static str, Vec<&'static str>)> {
                 "generic runtime data packet",
                 "fields: packet stream/packet/data, kind symbol, payload expr",
             ],
+            data_packet_shape(),
         ),
         (
             stream_diagnostic_shape_symbol(),
@@ -179,6 +203,7 @@ fn shape_specs() -> Vec<(Symbol, &'static str, Vec<&'static str>)> {
                 "diagnostic packet payload",
                 "kind symbol plus message string",
             ],
+            diagnostic_shape(),
         ),
     ]
 }
@@ -251,36 +276,45 @@ pub fn stream_diagnostic_shape_symbol() -> Symbol {
 struct DocumentedShape {
     name: &'static str,
     details: Vec<&'static str>,
+    inner: Arc<dyn Shape>,
 }
 
 impl DocumentedShape {
-    fn new(name: &'static str, details: Vec<&'static str>) -> Self {
-        Self { name, details }
+    fn new(name: &'static str, details: Vec<&'static str>, inner: Arc<dyn Shape>) -> Self {
+        Self {
+            name,
+            details,
+            inner,
+        }
     }
 }
 
 impl Shape for DocumentedShape {
+    fn parents(&self, cx: &mut Cx) -> Result<Vec<ShapeRef>> {
+        self.inner.parents(cx)
+    }
+
+    fn is_effectful(&self) -> bool {
+        self.inner.is_effectful()
+    }
+
     fn is_total(&self) -> bool {
-        AnyShape.is_total()
+        self.inner.is_total()
     }
 
-    fn check_value(
-        &self,
-        cx: &mut sim_kernel::Cx,
-        value: sim_kernel::Value,
-    ) -> Result<sim_shape::ShapeMatch> {
-        AnyShape.check_value(cx, value)
+    fn is_subshape_of(&self, cx: &mut Cx, parent: &dyn Shape) -> Result<Option<bool>> {
+        self.inner.is_subshape_of(cx, parent)
     }
 
-    fn check_expr(
-        &self,
-        cx: &mut sim_kernel::Cx,
-        expr: &sim_kernel::Expr,
-    ) -> Result<sim_shape::ShapeMatch> {
-        AnyShape.check_expr(cx, expr)
+    fn check_value(&self, cx: &mut Cx, value: Value) -> Result<ShapeMatch> {
+        self.inner.check_value(cx, value)
     }
 
-    fn describe(&self, _cx: &mut sim_kernel::Cx) -> Result<ShapeDoc> {
+    fn check_expr(&self, cx: &mut Cx, expr: &Expr) -> Result<ShapeMatch> {
+        self.inner.check_expr(cx, expr)
+    }
+
+    fn describe(&self, _cx: &mut Cx) -> Result<ShapeDoc> {
         let mut doc = ShapeDoc::new(self.name);
         for detail in &self.details {
             doc = doc.with_detail(*detail);

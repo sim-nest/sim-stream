@@ -101,6 +101,9 @@ mod inspector_tests;
 mod security_tests;
 
 #[cfg(test)]
+mod shape_tests;
+
+#[cfg(test)]
 mod site_tests;
 
 #[cfg(test)]
