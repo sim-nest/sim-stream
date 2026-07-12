@@ -135,7 +135,7 @@ fn clock_to_expr(clock: &Clock) -> Expr {
 }
 
 fn clock_from_expr(expr: &Expr) -> Result<Clock> {
-    let map = expr_map(expr, "clock descriptor")?;
+    let map = sim_value::access::map_entries(expr, "clock descriptor")?;
     expect_tag(map, "clock")?;
     let id = expr_symbol(lookup_required(map, "id")?, "clock id")?;
     let domain = ClockDomain::from_symbol(&expr_symbol(
@@ -183,7 +183,7 @@ fn tempo_map_from_expr(expr: &Expr) -> Result<TempoMap> {
         items
             .iter()
             .map(|item| {
-                let map = expr_map(item, "tempo segment")?;
+                let map = sim_value::access::map_entries(item, "tempo segment")?;
                 TempoSegment::new(
                     expr_u64(lookup_required(map, "start-tick")?, "start-tick")?,
                     expr_u32(lookup_required(map, "us-per-quarter")?, "us-per-quarter")?,
@@ -210,13 +210,6 @@ fn number_u64(value: u64) -> Expr {
         domain: Symbol::qualified("numbers", "i64"),
         canonical: value.to_string(),
     })
-}
-
-fn expr_map<'a>(expr: &'a Expr, context: &str) -> Result<&'a [(Expr, Expr)]> {
-    match expr {
-        Expr::Map(entries) => Ok(entries),
-        _ => Err(Error::Eval(format!("{context} must be a map"))),
-    }
 }
 
 fn expect_tag(map: &[(Expr, Expr)], expected: &str) -> Result<()> {

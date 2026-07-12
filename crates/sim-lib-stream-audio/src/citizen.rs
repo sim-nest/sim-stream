@@ -102,7 +102,7 @@ fn spec_to_expr(spec: PcmSpec) -> Expr {
 }
 
 fn spec_from_expr(expr: &Expr) -> Result<PcmSpec> {
-    let map = expr_map(expr, "PCM format descriptor")?;
+    let map = sim_value::access::map_entries(expr, "PCM format descriptor")?;
     expect_tag(map, "pcm-format")?;
     let channels = expr_usize(lookup_required(map, "channels")?, "channels")?;
     let sample_rate_hz = expr_u32(lookup_required(map, "sample-rate-hz")?, "sample-rate-hz")?;
@@ -137,13 +137,6 @@ fn number_usize(value: usize) -> Expr {
         domain: Symbol::qualified("numbers", "i64"),
         canonical: value.to_string(),
     })
-}
-
-fn expr_map<'a>(expr: &'a Expr, context: &str) -> Result<&'a [(Expr, Expr)]> {
-    match expr {
-        Expr::Map(entries) => Ok(entries),
-        _ => Err(Error::Eval(format!("{context} must be a map"))),
-    }
 }
 
 fn expect_tag(map: &[(Expr, Expr)], expected: &str) -> Result<()> {

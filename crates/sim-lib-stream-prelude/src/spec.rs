@@ -31,7 +31,7 @@ pub enum OpenSpec {
 }
 
 pub fn open_spec_from_expr(expr: Expr) -> Result<OpenSpec> {
-    let entries = map_entries(&expr, "stream memory spec")?;
+    let entries = access::map_entries(&expr, "stream memory spec")?;
     let kind = symbol_field(entries, "kind")?;
     match kind.as_qualified_str().as_str() {
         "stream/memory-midi-source" => midi_source_spec(entries),
@@ -244,7 +244,7 @@ fn metadata(
     let id = symbol_or_string_field(entries, "id")?;
     let clock = optional_symbol_or_string_field(entries, "clock")?
         .unwrap_or_else(|| Symbol::new(default_clock));
-    let buffer = match optional_field(entries, "buffer") {
+    let buffer = match access::entry_field(entries, "buffer") {
         Some(expr) => BufferPolicy::from_expr(expr)?,
         None => BufferPolicy::bounded(16)?,
     };
@@ -252,7 +252,7 @@ fn metadata(
 }
 
 fn midi_event(expr: &Expr, default_tpq: u16) -> Result<MidiPacketEvent> {
-    let entries = map_entries(expr, "MIDI memory event")?;
+    let entries = access::map_entries(expr, "MIDI memory event")?;
     let ticks = i64_field(entries, "ticks")?;
     let tpq = optional_u16_field(entries, "tpq")?.unwrap_or(default_tpq);
     let bytes = bytes_field(entries, "bytes")?;
@@ -275,7 +275,7 @@ fn pcm_spec(entries: &[(Expr, Expr)]) -> Result<PcmSpec> {
 }
 
 fn pcm_buffer(expr: &Expr, spec: PcmSpec) -> Result<PcmBuffer> {
-    let entries = map_entries(expr, "PCM memory buffer")?;
+    let entries = access::map_entries(expr, "PCM memory buffer")?;
     let frames = usize_field(entries, "frames")?;
     let samples = seq_field(entries, "samples")?
         .iter()
@@ -316,27 +316,9 @@ fn slash_symbol(text: &str) -> Symbol {
     }
 }
 
-fn map_entries<'a>(expr: &'a Expr, expected: &'static str) -> Result<&'a [(Expr, Expr)]> {
-    match expr {
-        Expr::Map(entries) => Ok(entries),
-        other => Err(Error::TypeMismatch {
-            expected,
-            found: expr_kind(other),
-        }),
-    }
-}
-
-fn optional_field<'a>(entries: &'a [(Expr, Expr)], name: &str) -> Option<&'a Expr> {
-    entries.iter().find_map(|(key, value)| match key {
-        Expr::Symbol(symbol) if symbol.namespace.is_none() && symbol.name.as_ref() == name => {
-            Some(value)
-        }
-        _ => None,
-    })
-}
-
-fn field<'a>(entries: &'a [(Expr, Expr)], name: &str) -> Result<&'a Expr> {
-    optional_field(entries, name).ok_or_else(|| Error::Eval(format!("stream spec missing {name}")))
+fn required_spec_field<'a>(entries: &'a [(Expr, Expr)], name: &str) -> Result<&'a Expr> {
+    access::entry_field(entries, name)
+        .ok_or_else(|| Error::Eval(format!("stream spec missing {name}")))
 }
 
 fn symbol_field<'a>(entries: &'a [(Expr, Expr)], name: &str) -> Result<&'a Symbol> {
@@ -344,11 +326,11 @@ fn symbol_field<'a>(entries: &'a [(Expr, Expr)], name: &str) -> Result<&'a Symbo
 }
 
 fn symbol_or_string_field(entries: &[(Expr, Expr)], name: &str) -> Result<Symbol> {
-    symbol_or_string(field(entries, name)?)
+    symbol_or_string(required_spec_field(entries, name)?)
 }
 
 fn optional_symbol_or_string_field(entries: &[(Expr, Expr)], name: &str) -> Result<Option<Symbol>> {
-    optional_field(entries, name)
+    access::entry_field(entries, name)
         .map(symbol_or_string)
         .transpose()
 }
@@ -365,11 +347,11 @@ fn symbol_or_string(expr: &Expr) -> Result<Symbol> {
 }
 
 fn seq_field<'a>(entries: &'a [(Expr, Expr)], name: &str) -> Result<&'a [Expr]> {
-    sequence(field(entries, name)?)
+    sequence(required_spec_field(entries, name)?)
 }
 
 fn optional_seq_field<'a>(entries: &'a [(Expr, Expr)], name: &str) -> Result<Option<&'a [Expr]>> {
-    optional_field(entries, name).map(sequence).transpose()
+    access::entry_field(entries, name).map(sequence).transpose()
 }
 
 fn sequence(expr: &Expr) -> Result<&[Expr]> {
@@ -383,7 +365,7 @@ fn sequence(expr: &Expr) -> Result<&[Expr]> {
 }
 
 fn bytes_field(entries: &[(Expr, Expr)], name: &str) -> Result<Vec<u8>> {
-    match field(entries, name)? {
+    match required_spec_field(entries, name)? {
         Expr::Bytes(bytes) => Ok(bytes.clone()),
         expr => sequence(expr)?
             .iter()
@@ -393,27 +375,29 @@ fn bytes_field(entries: &[(Expr, Expr)], name: &str) -> Result<Vec<u8>> {
 }
 
 fn usize_field(entries: &[(Expr, Expr)], name: &str) -> Result<usize> {
-    usize_expr(field(entries, name)?)
+    usize_expr(required_spec_field(entries, name)?)
 }
 
 fn optional_usize_field(entries: &[(Expr, Expr)], name: &str) -> Result<Option<usize>> {
-    optional_field(entries, name).map(usize_expr).transpose()
+    access::entry_field(entries, name)
+        .map(usize_expr)
+        .transpose()
 }
 
 fn i64_field(entries: &[(Expr, Expr)], name: &str) -> Result<i64> {
-    parse_number(field(entries, name)?, name)
+    parse_number(required_spec_field(entries, name)?, name)
 }
 
 fn u32_field(entries: &[(Expr, Expr)], name: &str) -> Result<u32> {
-    parse_number(field(entries, name)?, name)
+    parse_number(required_spec_field(entries, name)?, name)
 }
 
 fn u16_field(entries: &[(Expr, Expr)], name: &str) -> Result<u16> {
-    parse_number(field(entries, name)?, name)
+    parse_number(required_spec_field(entries, name)?, name)
 }
 
 fn optional_u16_field(entries: &[(Expr, Expr)], name: &str) -> Result<Option<u16>> {
-    optional_field(entries, name)
+    access::entry_field(entries, name)
         .map(|expr| parse_number(expr, name))
         .transpose()
 }

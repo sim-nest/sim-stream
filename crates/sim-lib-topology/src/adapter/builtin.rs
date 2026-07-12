@@ -7,6 +7,7 @@ use sim_kernel::{
     Args, Consistency, Cx, EncodeOptions, Error, EvalMode, EvalRequest, Expr, ReadPolicy, Result,
     Symbol, Value, list::force_list_to_vec, shape_match_value,
 };
+use sim_value::access;
 
 use crate::TopologyConnection;
 
@@ -351,8 +352,8 @@ fn codec_op(input: &Expr) -> CodecOp {
 }
 
 fn codec_input(input: &Expr) -> Result<Input> {
-    match field(input, "text")
-        .or_else(|| field(input, "bytes"))
+    match access::field(input, "text")
+        .or_else(|| access::field(input, "bytes"))
         .unwrap_or(input)
     {
         Expr::String(text) => Ok(Input::Text(text.clone())),
@@ -364,25 +365,27 @@ fn codec_input(input: &Expr) -> Result<Input> {
 }
 
 fn codec_expr(input: &Expr) -> &Expr {
-    field(input, "expr").unwrap_or(input)
+    access::field(input, "expr").unwrap_or(input)
 }
 
 fn table_op(input: &Expr) -> TableOp {
     let op = op_name(input);
     match op.as_deref() {
-        Some("get") => field(input, "key")
+        Some("get") => access::field(input, "key")
             .and_then(symbolish)
             .map(TableOp::Get)
             .unwrap_or(TableOp::Scan),
-        Some("put") | Some("set") => match (field(input, "key"), field(input, "value")) {
-            (Some(key), Some(value)) => symbolish(key)
-                .map(|key| TableOp::Put {
-                    key,
-                    value: value.clone(),
-                })
-                .unwrap_or(TableOp::Scan),
-            _ => TableOp::Scan,
-        },
+        Some("put") | Some("set") => {
+            match (access::field(input, "key"), access::field(input, "value")) {
+                (Some(key), Some(value)) => symbolish(key)
+                    .map(|key| TableOp::Put {
+                        key,
+                        value: value.clone(),
+                    })
+                    .unwrap_or(TableOp::Scan),
+                _ => TableOp::Scan,
+            }
+        }
         Some("scan") | Some("entries") => TableOp::Scan,
         _ => symbolish(input).map(TableOp::Get).unwrap_or(TableOp::Scan),
     }
@@ -390,14 +393,16 @@ fn table_op(input: &Expr) -> TableOp {
 
 fn list_op(input: &Expr) -> ListOp {
     match op_name(input).as_deref() {
-        Some("map") => field(input, "target")
+        Some("map") => access::field(input, "target")
             .cloned()
             .map(ListOp::Map)
             .unwrap_or(ListOp::Items),
-        Some("fold") => match field(input, "target").cloned() {
+        Some("fold") => match access::field(input, "target").cloned() {
             Some(folder) => ListOp::Fold {
                 folder,
-                initial: field(input, "initial").cloned().unwrap_or(Expr::Nil),
+                initial: access::field(input, "initial")
+                    .cloned()
+                    .unwrap_or(Expr::Nil),
             },
             None => ListOp::Items,
         },
@@ -406,22 +411,10 @@ fn list_op(input: &Expr) -> ListOp {
 }
 
 fn op_name(input: &Expr) -> Option<String> {
-    field(input, "op")
-        .or_else(|| field(input, "mode"))
+    access::field(input, "op")
+        .or_else(|| access::field(input, "mode"))
         .and_then(symbolish)
         .map(|symbol| symbol.name.to_string())
-}
-
-fn field<'a>(expr: &'a Expr, name: &str) -> Option<&'a Expr> {
-    let Expr::Map(entries) = expr else {
-        return None;
-    };
-    entries.iter().find_map(|(key, value)| match key {
-        Expr::Symbol(symbol) if symbol.namespace.is_none() && symbol.name.as_ref() == name => {
-            Some(value)
-        }
-        _ => None,
-    })
 }
 
 fn symbolish(expr: &Expr) -> Option<Symbol> {
