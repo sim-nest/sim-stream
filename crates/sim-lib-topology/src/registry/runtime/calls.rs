@@ -7,6 +7,7 @@ use sim_kernel::{
 
 use crate::{
     Graph, TopologyConnection, TopologyPatch, compile_graph, connection_from_graph,
+    cookbook::{embodied_intelligence_trace_demo, tiny_graph_demo},
     counterfactual_replay,
     diagram::{draw, from_diagram},
     package::parse_package,
@@ -46,6 +47,8 @@ enum TopologyFnKind {
     Reload,
     Patch,
     Test,
+    TinyGraphDemo,
+    EmbodiedIntelligenceTraceDemo,
 }
 
 #[derive(Clone)]
@@ -124,6 +127,10 @@ impl Callable for TopologyFunction {
             TopologyFnKind::Reload => self.call_reload(cx, args.into_exprs()),
             TopologyFnKind::Patch => self.call_patch_exprs(cx, args.into_exprs()),
             TopologyFnKind::Test => self.call_test(cx, args.into_exprs()),
+            TopologyFnKind::TinyGraphDemo => self.call_tiny_graph_demo(cx, args.into_exprs()),
+            TopologyFnKind::EmbodiedIntelligenceTraceDemo => {
+                self.call_embodied_intelligence_trace_demo(cx, args.into_exprs())
+            }
         }
     }
 }
@@ -282,6 +289,16 @@ impl TopologyFunction {
         let report = run_embedded_tests(cx, &graph)?;
         cx.factory().expr(report)
     }
+
+    fn call_tiny_graph_demo(&self, cx: &mut Cx, args: Vec<Expr>) -> Result<Value> {
+        expect_len(&self.symbol, &args, 0)?;
+        cx.factory().expr(tiny_graph_demo())
+    }
+
+    fn call_embodied_intelligence_trace_demo(&self, cx: &mut Cx, args: Vec<Expr>) -> Result<Value> {
+        expect_len(&self.symbol, &args, 0)?;
+        cx.factory().expr(embodied_intelligence_trace_demo())
+    }
 }
 
 pub(super) fn topology_functions(registry: SharedTopologyRegistry) -> Vec<TopologyFunction> {
@@ -323,6 +340,11 @@ fn function_specs() -> Vec<(Symbol, TopologyFnKind)> {
         ("reload", TopologyFnKind::Reload),
         ("patch", TopologyFnKind::Patch),
         ("test", TopologyFnKind::Test),
+        ("tiny-graph-demo", TopologyFnKind::TinyGraphDemo),
+        (
+            "embodied-intelligence-trace-demo",
+            TopologyFnKind::EmbodiedIntelligenceTraceDemo,
+        ),
     ]
     .into_iter()
     .map(|(name, kind)| (Symbol::qualified("topology", name), kind))

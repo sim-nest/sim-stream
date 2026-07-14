@@ -16,6 +16,7 @@ mod codec_integer;
 pub mod codec_primitive;
 pub mod context;
 pub mod cookbook;
+mod cookbook_runtime;
 pub mod derive_support;
 pub mod error;
 #[cfg(feature = "rank-expr")]

@@ -17,6 +17,7 @@ use crate::{
     RankSpaceCardMetadata,
     cap::{rank_enumerate_capability, rank_neighbor_capability, rank_read_capability},
     claims::publish_space_card_claims,
+    cookbook_runtime::{install_rank_cookbook_functions, rank_cookbook_exports},
     lisp_class::{RankClass, RankClassKind, class_value_or_stub},
     nat::intern_ordinal,
     read_construct::{nat_from_value, symbol_from_value, u64_from_value, usize_from_value},
@@ -65,6 +66,7 @@ impl Lib for RankLib {
         ] {
             register_rank_class(linker, kind)?;
         }
+        install_rank_cookbook_functions(cx, linker)?;
         Ok(())
     }
 }
@@ -193,6 +195,7 @@ pub fn rank_exports() -> Vec<Export> {
         symbol,
         function_id: None,
     })
+    .chain(rank_cookbook_exports())
     .chain(
         [
             rank_space_class_symbol(),
