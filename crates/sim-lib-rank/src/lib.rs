@@ -15,6 +15,7 @@ mod codec_group_product;
 mod codec_integer;
 pub mod codec_primitive;
 pub mod context;
+pub mod cookbook;
 pub mod derive_support;
 pub mod error;
 #[cfg(feature = "rank-expr")]
@@ -73,6 +74,7 @@ pub use codec_primitive::RankPrimitiveCodec;
 pub use context::{
     RankContext, default_order_for_context, order_symbol, standard_default_contexts,
 };
+pub use cookbook::{rank_retrieve_demo, recommendation_ranking_demo, space_coordinate_demo};
 pub use derive_support::{
     RankChild, RankDescribe, RankDescribeContext, RankEnumDescriptor, RankRecursive, derived_symbol,
 };

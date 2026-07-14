@@ -1,1 +1,1 @@
-(quote (stream-clock chart ticks samples tempo 120 segment 0))
+(stream/clock-tempo-chart-demo)

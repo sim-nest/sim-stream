@@ -11,6 +11,7 @@ pub mod bridge;
 pub mod buffer;
 pub mod cassette;
 mod citizen;
+pub mod cookbook;
 pub mod dev;
 pub mod envelope;
 pub mod inspector;
@@ -38,6 +39,7 @@ pub use cassette::{
     stream_cassette_golden_root,
 };
 pub use citizen::{StreamPacketDescriptor, stream_packet_class_symbol};
+pub use cookbook::metadata_descriptor_demo;
 pub use dev::{
     DevCassette, DevEvent, DevFaultReport, MediaDescriptor, dev_dropped_chunks_diagnostic,
     dev_event_media, dev_event_metadata,

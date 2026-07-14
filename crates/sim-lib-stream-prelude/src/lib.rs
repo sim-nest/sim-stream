@@ -17,6 +17,7 @@
 
 mod cap;
 mod card;
+pub mod cookbook;
 mod function;
 mod handle;
 mod live;
@@ -27,6 +28,7 @@ pub use cap::{
     stream_control_capability, stream_open_capability, stream_read_capability,
     stream_transform_capability, stream_write_capability,
 };
+pub use cookbook::memory_pipe_demo;
 pub use function::{
     StreamPreludeLib, install_stream_prelude_lib, stream_card_symbol, stream_memory_specs_symbol,
     stream_open_symbol, stream_pipe_symbol, stream_sink_packets_symbol, stream_write_symbol,

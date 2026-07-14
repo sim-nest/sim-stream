@@ -1,1 +1,1 @@
-(quote (stream-prelude memory-source memory-sink pipe card capabilities))
+(stream/prelude-memory-pipe-demo)

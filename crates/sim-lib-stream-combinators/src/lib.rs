@@ -8,6 +8,7 @@
 
 mod bridge;
 mod cell;
+pub mod cookbook;
 mod event_algebra;
 mod ops;
 mod recording;
@@ -15,6 +16,7 @@ mod stream;
 
 pub use bridge::{event_rate_gate, jitter_buffer, latency_comp_delay, resample_pcm};
 pub use cell::{CellSnapshot, StreamCell, stream_cell};
+pub use cookbook::pipeline_stages_demo;
 pub use event_algebra::{
     event_join_data_kind, expr_path, filter_data_field_eq, join_data_on_field,
     model_event_data_kind, project_data_field, rank_data_by_i64_field, rank_frontier_data_kind,

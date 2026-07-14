@@ -45,6 +45,7 @@ pub mod browse;
 pub mod capability;
 mod citizen;
 pub mod compile;
+pub mod cookbook;
 pub mod diagram;
 pub mod error;
 pub mod instrument;
@@ -80,6 +81,7 @@ pub use citizen::{
     topology_edge_class_symbol, topology_node_class_symbol, topology_package_class_symbol,
 };
 pub use compile::{CompiledGraph, compile_graph};
+pub use cookbook::{embodied_intelligence_trace_demo, tiny_graph_demo};
 pub use instrument::{
     InstrumentTopologyAdapter, InstrumentTopologyCord, InstrumentTopologyJack,
     InstrumentTopologyModule, InstrumentTopologySpec,
