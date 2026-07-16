@@ -1,5 +1,78 @@
 {
-  "schema": "sim.feature-map.v1",
-  "repo": "sim-stream",
-  "packages": []
+  "generator": "xtask repo-contract v1",
+  "packages": [
+    {
+      "features": [
+        {
+          "edges": [],
+          "name": "default",
+          "workspace_edges": []
+        },
+        {
+          "edges": [
+            "dep:sim-codec-binary"
+          ],
+          "name": "rank-codec-fallback",
+          "workspace_edges": []
+        },
+        {
+          "edges": [],
+          "name": "rank-expr",
+          "workspace_edges": []
+        },
+        {
+          "edges": [],
+          "name": "rank-learn",
+          "workspace_edges": []
+        },
+        {
+          "edges": [],
+          "name": "rank-music",
+          "workspace_edges": []
+        },
+        {
+          "edges": [],
+          "name": "rank-scatter",
+          "workspace_edges": []
+        }
+      ],
+      "group": "workspace",
+      "package": "sim-lib-rank"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-stream-audio"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-stream-clock"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-stream-combinators"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-stream-core"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-stream-prelude"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-topology"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "xtask"
+    }
+  ]
 }

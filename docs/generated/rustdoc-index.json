@@ -1,5 +1,61 @@
 {
-  "schema": "sim.rustdoc-index.v1",
-  "repo": "sim-stream",
-  "target_doc": "target/doc/"
+  "generator": "xtask repo-contract v1",
+  "packages": [
+    {
+      "crate_name": "sim_lib_rank",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-rank/Cargo.toml",
+      "package": "sim-lib-rank",
+      "summary": "RANK 6 coordinate, codec, order, search, and optional domain spaces."
+    },
+    {
+      "crate_name": "sim_lib_stream_audio",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-stream-audio/Cargo.toml",
+      "package": "sim-lib-stream-audio",
+      "summary": "PCM source and sink adapters for STREAM 6."
+    },
+    {
+      "crate_name": "sim_lib_stream_clock",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-stream-clock/Cargo.toml",
+      "package": "sim-lib-stream-clock",
+      "summary": "Clock charts and tick conversion helpers for STREAM 6."
+    },
+    {
+      "crate_name": "sim_lib_stream_combinators",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-stream-combinators/Cargo.toml",
+      "package": "sim-lib-stream-combinators",
+      "summary": "Lazy in-memory stream combinators for STREAM 6."
+    },
+    {
+      "crate_name": "sim_lib_stream_core",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-stream-core/Cargo.toml",
+      "package": "sim-lib-stream-core",
+      "summary": "Core stream envelopes, metadata, packets, and buffer values."
+    },
+    {
+      "crate_name": "sim_lib_stream_prelude",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-stream-prelude/Cargo.toml",
+      "package": "sim-lib-stream-prelude",
+      "summary": "Lisp-facing STREAM 6 prelude for memory streams."
+    },
+    {
+      "crate_name": "sim_lib_topology",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-topology/Cargo.toml",
+      "package": "sim-lib-topology",
+      "summary": "Data-driven topology engine."
+    },
+    {
+      "crate_name": "xtask",
+      "group": "workspace",
+      "manifest": "xtask/Cargo.toml",
+      "package": "xtask",
+      "summary": "SIM workspace package for xtask."
+    }
+  ]
 }
