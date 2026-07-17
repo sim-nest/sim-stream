@@ -79,6 +79,7 @@
   "non_citizen_exemptions": [
     {
       "crate": "sim-lib-stream-core",
+      "descriptor": "stream/Packet",
       "file": "crates/sim-lib-stream-core/src/spine.rs",
       "kind": "handle",
       "line": 110,
@@ -86,6 +87,7 @@
     },
     {
       "crate": "sim-lib-stream-prelude",
+      "descriptor": "stream/Metadata",
       "file": "crates/sim-lib-stream-prelude/src/handle.rs",
       "kind": "handle",
       "line": 13,
@@ -93,6 +95,7 @@
     },
     {
       "crate": "sim-lib-stream-prelude",
+      "descriptor": "stream/StageDescriptor",
       "file": "crates/sim-lib-stream-prelude/src/handle.rs",
       "kind": "handle",
       "line": 70,
@@ -100,6 +103,7 @@
     },
     {
       "crate": "sim-lib-stream-prelude",
+      "descriptor": "stream/CellDescriptor",
       "file": "crates/sim-lib-stream-prelude/src/live.rs",
       "kind": "handle",
       "line": 32,
@@ -107,6 +111,7 @@
     },
     {
       "crate": "sim-lib-stream-prelude",
+      "descriptor": "stream/GraphDescriptor",
       "file": "crates/sim-lib-stream-prelude/src/live.rs",
       "kind": "handle",
       "line": 42,
@@ -114,6 +119,7 @@
     },
     {
       "crate": "sim-lib-topology",
+      "descriptor": "topology/Package",
       "file": "crates/sim-lib-topology/src/site.rs",
       "kind": "handle",
       "line": 18,
@@ -516,10 +522,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-15T01:30:25+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "2c77f4355208f6d6f16eb2bf7307a4a4da0912ac",
+    "git_commit": "dfb2c3341861a6677208960c1ebfe17d7a763b9a",
     "repo": "sim-stream",
     "schema": "sim.provenance.v1",
-    "source_commit": "2c77f4355208f6d6f16eb2bf7307a4a4da0912ac",
+    "source_commit": "dfb2c3341861a6677208960c1ebfe17d7a763b9a",
     "source_remote": "https://github.com/sim-nest/sim-stream",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -532,7 +538,7 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "ab1ead8a8239d07b",
+    "workspace_hash": "3e8bb14e4bebd788",
     "workspace_hash_algorithm": "fnv1a64",
     "workspace_hash_input_count": 228,
     "workspace_hash_inputs": [
