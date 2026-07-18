@@ -25,7 +25,8 @@ mod live_control;
 mod spec;
 
 pub use cap::{
-    stream_control_capability, stream_open_capability, stream_read_capability,
+    stream_cancel_capability, stream_control_capability, stream_open_capability,
+    stream_push_capability, stream_read_capability, stream_stats_capability,
     stream_transform_capability, stream_write_capability,
 };
 pub use cookbook::memory_pipe_demo;

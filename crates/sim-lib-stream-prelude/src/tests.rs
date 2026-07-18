@@ -7,7 +7,8 @@ use sim_kernel::{Error, Expr, Symbol, force_list_to_vec};
 use sim_lib_stream_core::StreamPacket;
 
 use crate::{
-    stream_control_capability, stream_open_capability, stream_read_capability,
+    stream_cancel_capability, stream_control_capability, stream_open_capability,
+    stream_push_capability, stream_read_capability, stream_stats_capability,
     stream_transform_capability, stream_write_capability,
 };
 
@@ -54,7 +55,11 @@ fn lisp_opens_midi_memory_source_and_pulls_packets() {
 
 #[test]
 fn lisp_opens_pcm_memory_sink_and_writes_packets() {
-    let mut cx = cx(&[stream_open_capability(), stream_write_capability()]);
+    let mut cx = cx(&[
+        stream_open_capability(),
+        stream_push_capability(),
+        stream_stats_capability(),
+    ]);
     let sink = eval_lisp(&mut cx, &pcm_sink_form("stream/test-pcm-sink")).unwrap();
     cx.env_mut().define(Symbol::new("sink"), sink);
 
@@ -83,7 +88,7 @@ fn full_memory_pipeline_runs() {
     let mut cx = cx(&[
         stream_open_capability(),
         stream_read_capability(),
-        stream_write_capability(),
+        stream_push_capability(),
     ]);
     let source = eval_lisp(&mut cx, &pcm_source_form("stream/test-pcm-source")).unwrap();
     let sink = eval_lisp(&mut cx, &pcm_sink_form("stream/test-pcm-sink")).unwrap();
@@ -118,7 +123,12 @@ fn full_memory_pipeline_runs() {
 
 #[test]
 fn stream_card_shows_metadata_stats_done_and_cancelled() {
-    let mut cx = cx(&[stream_open_capability(), stream_read_capability()]);
+    let mut cx = cx(&[
+        stream_open_capability(),
+        stream_read_capability(),
+        stream_cancel_capability(),
+        stream_stats_capability(),
+    ]);
     let source = eval_lisp(&mut cx, &midi_source_form("stream/card-midi")).unwrap();
     cx.env_mut().define(Symbol::new("src"), source);
     eval_lisp(
@@ -148,11 +158,23 @@ fn stream_card_shows_metadata_stats_done_and_cancelled() {
         table_value(stats, "yielded"),
         Some(&Expr::String("1".to_owned()))
     );
+    let Some(Expr::List(requires)) = table_value(&card, "requires") else {
+        panic!("expected card requires");
+    };
+    assert!(has_symbol(requires, "capability", "stream.read"));
+    assert!(has_symbol(requires, "capability", "stream.push"));
+    assert!(has_symbol(requires, "capability", "stream.cancel"));
+    assert!(has_symbol(requires, "capability", "stream.stats"));
+    assert!(!has_symbol(requires, "capability", "stream.write"));
 }
 
 #[test]
 fn stream_browse_schema_is_stable() {
-    let mut cx = cx(&[stream_open_capability(), stream_read_capability()]);
+    let mut cx = cx(&[
+        stream_open_capability(),
+        stream_read_capability(),
+        stream_stats_capability(),
+    ]);
     eval_lisp(&mut cx, &midi_source_form("stream/schema-midi")).unwrap();
 
     let list = eval_lisp(&mut cx, "(expr:call (expr:symbol \"stream\" \"list\"))").unwrap();
@@ -184,7 +206,7 @@ fn graph_lisp_round_trips_a_pipeline() {
     let mut cx = cx(&[
         stream_open_capability(),
         stream_read_capability(),
-        stream_write_capability(),
+        stream_push_capability(),
     ]);
     let source = eval_lisp(&mut cx, &pcm_source_form("stream/test-pcm-source")).unwrap();
     let sink = eval_lisp(&mut cx, &pcm_sink_form("stream/test-pcm-sink")).unwrap();
@@ -470,6 +492,126 @@ fn cell_edit_requires_control_capability() {
 }
 
 #[test]
+fn write_requires_canonical_stream_push_capability() {
+    assert_eq!(stream_write_capability(), stream_push_capability());
+
+    let mut cx = cx(&[stream_open_capability()]);
+    let sink = eval_lisp(&mut cx, &pcm_sink_form("stream/write-cap-sink")).unwrap();
+    cx.env_mut().define(Symbol::new("sink"), sink);
+
+    let write_form = concat!(
+        "(expr:call (expr:symbol \"stream\" \"write!\") sink ",
+        "(quote (expr:map [packet stream/packet/pcm] [channels \"2\"] ",
+        "[frames \"1\"] [sample-format pcm/i16] [samples (\"7\" \"-7\")])))"
+    );
+    let err = eval_lisp(&mut cx, write_form).unwrap_err();
+    match err {
+        Error::CapabilityDenied { capability } if capability == stream_push_capability() => {}
+        other => panic!("expected stream.push denial, got {other:?}"),
+    }
+
+    cx.grant(stream_push_capability());
+    let wrote = eval_lisp(&mut cx, write_form).unwrap();
+    assert_eq!(value_expr(&mut cx, wrote), Expr::Bool(true));
+}
+
+#[test]
+fn cancel_requires_stream_cancel_capability() {
+    let mut cx = cx(&[stream_open_capability()]);
+    let source = eval_lisp(&mut cx, &midi_source_form("stream/cancel-cap-midi")).unwrap();
+    cx.env_mut().define(Symbol::new("src"), source);
+
+    let err = eval_lisp(
+        &mut cx,
+        "(expr:call (expr:symbol \"stream\" \"cancel!\") src)",
+    )
+    .unwrap_err();
+    match err {
+        Error::CapabilityDenied { capability } if capability == stream_cancel_capability() => {}
+        other => panic!("expected stream.cancel denial, got {other:?}"),
+    }
+
+    cx.grant(stream_cancel_capability());
+    eval_lisp(
+        &mut cx,
+        "(expr:call (expr:symbol \"stream\" \"cancel!\") src)",
+    )
+    .unwrap();
+}
+
+#[test]
+fn stats_requires_stream_stats_capability() {
+    let mut cx = cx(&[stream_open_capability()]);
+    let source = eval_lisp(&mut cx, &midi_source_form("stream/stats-cap-midi")).unwrap();
+    cx.env_mut().define(Symbol::new("src"), source);
+
+    let err = eval_lisp(&mut cx, "(stream/stats src)").unwrap_err();
+    match err {
+        Error::CapabilityDenied { capability } if capability == stream_stats_capability() => {}
+        other => panic!("expected stream.stats denial, got {other:?}"),
+    }
+
+    cx.grant(stream_stats_capability());
+    let stats = eval_lisp(&mut cx, "(stream/stats src)").unwrap();
+    let stats = value_expr(&mut cx, stats);
+    assert!(table_value(&stats, "yielded").is_some());
+}
+
+#[test]
+fn metadata_requires_stream_read_capability() {
+    let mut cx = cx(&[stream_open_capability()]);
+    let source = eval_lisp(&mut cx, &midi_source_form("stream/metadata-cap-midi")).unwrap();
+    cx.env_mut().define(Symbol::new("src"), source);
+
+    let err = eval_lisp(&mut cx, "(stream/metadata src)").unwrap_err();
+    match err {
+        Error::CapabilityDenied { capability } if capability == stream_read_capability() => {}
+        other => panic!("expected stream.read denial, got {other:?}"),
+    }
+
+    cx.grant(stream_read_capability());
+    let metadata = eval_lisp(&mut cx, "(stream/metadata src)").unwrap();
+    let metadata = value_expr(&mut cx, metadata);
+    assert_eq!(
+        table_value(&metadata, "id"),
+        Some(&Expr::String("stream/metadata-cap-midi".to_owned()))
+    );
+}
+
+#[test]
+fn card_requires_stream_read_and_stats_capabilities() {
+    let mut cx_with_stats = cx(&[stream_open_capability(), stream_stats_capability()]);
+    let source = eval_lisp(
+        &mut cx_with_stats,
+        &midi_source_form("stream/card-read-cap"),
+    )
+    .unwrap();
+    cx_with_stats.env_mut().define(Symbol::new("src"), source);
+    let err = eval_lisp(&mut cx_with_stats, "(stream/card src)").unwrap_err();
+    match err {
+        Error::CapabilityDenied { capability } if capability == stream_read_capability() => {}
+        other => panic!("expected stream.read denial, got {other:?}"),
+    }
+
+    let mut cx_with_read = cx(&[stream_open_capability(), stream_read_capability()]);
+    let source = eval_lisp(
+        &mut cx_with_read,
+        &midi_source_form("stream/card-stats-cap"),
+    )
+    .unwrap();
+    cx_with_read.env_mut().define(Symbol::new("src"), source);
+    let err = eval_lisp(&mut cx_with_read, "(stream/card src)").unwrap_err();
+    match err {
+        Error::CapabilityDenied { capability } if capability == stream_stats_capability() => {}
+        other => panic!("expected stream.stats denial, got {other:?}"),
+    }
+
+    cx_with_read.grant(stream_stats_capability());
+    let card = eval_lisp(&mut cx_with_read, "(stream/card src)").unwrap();
+    assert!(table_value(&value_expr(&mut cx_with_read, card), "stats").is_some());
+}
+
+#[test]
 fn missing_capability_is_rejected() {
     let mut cx = cx(&[]);
     let err = eval_lisp(&mut cx, &midi_source_form("stream/no-cap")).unwrap_err();
@@ -477,4 +619,14 @@ fn missing_capability_is_rejected() {
         err,
         Error::CapabilityDenied { capability } if capability == stream_open_capability()
     ));
+}
+
+fn has_symbol(values: &[Expr], namespace: &str, name: &str) -> bool {
+    values.iter().any(|value| {
+        matches!(
+            value,
+            Expr::Symbol(symbol)
+                if symbol.namespace.as_deref() == Some(namespace) && symbol.name.as_ref() == name
+        )
+    })
 }

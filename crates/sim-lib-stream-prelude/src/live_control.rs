@@ -5,7 +5,10 @@ use sim_lib_stream_core::{StreamDiagnostic, StreamPacket, StreamStats};
 use sim_value::kind::expr_kind;
 
 use crate::{
-    cap::{stream_control_capability, stream_open_capability, stream_read_capability},
+    cap::{
+        stream_control_capability, stream_open_capability, stream_read_capability,
+        stream_stats_capability,
+    },
     card::{
         cell_card, clock_card, diagnostic_card, diagnostic_explanation, graph_card,
         graph_expr_card, packet_card, stream_card, stream_card_with_age,
@@ -16,6 +19,7 @@ use crate::{
 
 pub(crate) fn list_fn(runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Result<Value> {
     cx.require(&stream_read_capability())?;
+    cx.require(&stream_stats_capability())?;
     let dropped_only = list_dropped_only(cx, args)?;
     let mut cards = Vec::new();
     for entry in runtime.stream_entries()? {
@@ -53,6 +57,7 @@ pub(crate) fn describe_fn(runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -
 
     let value = eval_value(cx, subject)?;
     if let Some(handle) = value.object().downcast_ref::<StreamHandle>() {
+        cx.require(&stream_stats_capability())?;
         return stream_card(cx, handle);
     }
     if let Some(cell) = value.object().downcast_ref::<LiveCell>() {

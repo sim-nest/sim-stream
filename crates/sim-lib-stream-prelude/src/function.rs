@@ -15,8 +15,8 @@ use sim_lib_stream_core::{
 
 use crate::{
     cap::{
-        stream_open_capability, stream_read_capability, stream_transform_capability,
-        stream_write_capability,
+        stream_cancel_capability, stream_open_capability, stream_push_capability,
+        stream_read_capability, stream_stats_capability, stream_transform_capability,
     },
     card::{stats_value, stream_card},
     handle::{StageHandle, StreamHandle},
@@ -320,7 +320,7 @@ fn next_fn(_runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Result<Value
 }
 
 fn write_fn(_runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Result<Value> {
-    cx.require(&stream_write_capability())?;
+    cx.require(&stream_push_capability())?;
     let [sink, packet] = args else {
         return Err(Error::Eval(
             "stream/write! expects a sink handle and packet".to_owned(),
@@ -384,12 +384,13 @@ fn run_fn(_runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Result<Value>
     let stream = handle_arg(cx, stream)?;
     cx.require(&stream_read_capability())?;
     if stream.is_pipeline_with_sink() {
-        cx.require(&stream_write_capability())?;
+        cx.require(&stream_push_capability())?;
     }
     run_report_value(cx, stream.run()?)
 }
 
 fn cancel_fn(_runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Result<Value> {
+    cx.require(&stream_cancel_capability())?;
     let [stream] = args else {
         return Err(Error::Eval(
             "stream/cancel! expects one stream handle".to_owned(),
@@ -400,6 +401,7 @@ fn cancel_fn(_runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Result<Val
 }
 
 fn stats_fn(_runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Result<Value> {
+    cx.require(&stream_stats_capability())?;
     let [stream] = args else {
         return Err(Error::Eval(
             "stream/stats expects one stream handle".to_owned(),
@@ -411,6 +413,7 @@ fn stats_fn(_runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Result<Valu
 }
 
 fn metadata_fn(_runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Result<Value> {
+    cx.require(&stream_read_capability())?;
     let [stream] = args else {
         return Err(Error::Eval(
             "stream/metadata expects one stream handle".to_owned(),
@@ -421,6 +424,8 @@ fn metadata_fn(_runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Result<V
 }
 
 fn card_fn(_runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Result<Value> {
+    cx.require(&stream_read_capability())?;
+    cx.require(&stream_stats_capability())?;
     let [stream] = args else {
         return Err(Error::Eval(
             "stream/card expects one stream handle".to_owned(),
