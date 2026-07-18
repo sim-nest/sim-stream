@@ -10,6 +10,8 @@ use sim_lib_stream_core::{
     MidiPacket, StreamItem, StreamMetadata, StreamPacket, StreamStats, StreamValue,
 };
 
+use crate::transform::TransformSource;
+
 #[non_citizen(
     reason = "live stream handle; reconstruct stream/Metadata and stream/Packet descriptors then open explicitly",
     kind = "handle",
@@ -36,6 +38,9 @@ struct HandleInner {
 enum HandleKind {
     Source {
         stream: Arc<StreamValue>,
+    },
+    Transform {
+        transform: TransformSource,
     },
     PcmSink {
         spec: PcmSpec,
@@ -95,6 +100,22 @@ impl StreamHandle {
         Self::new(metadata, HandleKind::Source { stream })
     }
 
+    pub(crate) fn filter_kind(source: StreamHandle, kind: Symbol) -> Self {
+        Self::from_transform(TransformSource::filter_kind(source, kind))
+    }
+
+    pub(crate) fn filter_shape(source: StreamHandle, shape: sim_kernel::Value) -> Self {
+        Self::from_transform(TransformSource::filter_shape(source, shape))
+    }
+
+    pub(crate) fn map_expr(source: StreamHandle, mapper: sim_kernel::Value) -> Self {
+        Self::from_transform(TransformSource::map_expr(source, mapper))
+    }
+
+    pub(crate) fn window(source: StreamHandle, count: usize) -> Self {
+        Self::from_transform(TransformSource::window(source, count))
+    }
+
     /// Builds a PCM sink handle that validates writes against `spec`.
     pub fn pcm_sink(metadata: StreamMetadata, spec: PcmSpec) -> Self {
         Self::new(
@@ -146,6 +167,13 @@ impl StreamHandle {
         }
     }
 
+    fn from_transform(transform: TransformSource) -> Self {
+        Self::new(
+            transform.metadata().clone(),
+            HandleKind::Transform { transform },
+        )
+    }
+
     /// Returns the stream metadata describing this handle.
     pub fn metadata(&self) -> &StreamMetadata {
         &self.inner.metadata
@@ -176,6 +204,22 @@ impl StreamHandle {
         match &self.inner.kind {
             HandleKind::Source { stream } => stream.next_packet(),
             HandleKind::Pipeline { source, .. } => source.next_packet(),
+            HandleKind::Transform { .. } => Err(Error::Eval(
+                "stream transform requires stream/next! runtime context".to_owned(),
+            )),
+            HandleKind::PcmSink { .. } | HandleKind::MidiSink { .. } => Err(Error::Eval(
+                "stream/next! expects a source stream handle".to_owned(),
+            )),
+        }
+    }
+
+    /// Pulls the next packet with access to runtime context for lazy
+    /// expression and Shape transforms.
+    pub fn next_packet_with_cx(&self, cx: &mut Cx) -> Result<Option<StreamItem>> {
+        match &self.inner.kind {
+            HandleKind::Source { stream } => stream.next_packet(),
+            HandleKind::Transform { transform } => transform.next_packet(cx),
+            HandleKind::Pipeline { source, .. } => source.next_packet_with_cx(cx),
             HandleKind::PcmSink { .. } | HandleKind::MidiSink { .. } => Err(Error::Eval(
                 "stream/next! expects a source stream handle".to_owned(),
             )),
@@ -208,7 +252,9 @@ impl StreamHandle {
                 ensure_midi_tpq(*tpq, midi)?;
                 write_sink_packet(state, packet)
             }
-            HandleKind::Source { .. } | HandleKind::Pipeline { .. } => Err(Error::Eval(
+            HandleKind::Source { .. }
+            | HandleKind::Transform { .. }
+            | HandleKind::Pipeline { .. } => Err(Error::Eval(
                 "stream/write! expects a sink stream handle".to_owned(),
             )),
         }
@@ -233,6 +279,28 @@ impl StreamHandle {
                 Ok(report)
             }
             HandleKind::Pipeline { source, sink } => run_pipeline(source, sink.as_ref()),
+            HandleKind::Transform { .. } => Err(Error::Eval(
+                "stream transform requires stream/run! runtime context".to_owned(),
+            )),
+            HandleKind::PcmSink { .. } | HandleKind::MidiSink { .. } => Err(Error::Eval(
+                "stream/run! expects a source or pipeline handle".to_owned(),
+            )),
+        }
+    }
+
+    /// Drains a source or pipeline with runtime context for lazy transforms.
+    pub fn run_with_cx(&self, cx: &mut Cx) -> Result<RunReport> {
+        match &self.inner.kind {
+            HandleKind::Source { .. } | HandleKind::Transform { .. } => {
+                let mut report = RunReport::default();
+                while self.next_packet_with_cx(cx)?.is_some() {
+                    report.packets += 1;
+                }
+                Ok(report)
+            }
+            HandleKind::Pipeline { source, sink } => {
+                run_pipeline_with_cx(cx, source, sink.as_ref())
+            }
             HandleKind::PcmSink { .. } | HandleKind::MidiSink { .. } => Err(Error::Eval(
                 "stream/run! expects a source or pipeline handle".to_owned(),
             )),
@@ -249,6 +317,7 @@ impl StreamHandle {
     pub fn cancel(&self) -> Result<()> {
         match &self.inner.kind {
             HandleKind::Source { stream } => stream.cancel(),
+            HandleKind::Transform { transform } => transform.cancel(),
             HandleKind::Pipeline { source, sink } => {
                 source.cancel()?;
                 if let Some(sink) = sink {
@@ -277,6 +346,7 @@ impl StreamHandle {
     pub fn stats(&self) -> Result<StreamStats> {
         match &self.inner.kind {
             HandleKind::Source { stream } => stream.stats(),
+            HandleKind::Transform { transform } => transform.stats(),
             HandleKind::Pipeline { source, .. } => source.stats(),
             HandleKind::PcmSink { state, .. } | HandleKind::MidiSink { state, .. } => state
                 .lock()
@@ -296,6 +366,7 @@ impl StreamHandle {
     pub fn done(&self) -> Result<bool> {
         match &self.inner.kind {
             HandleKind::Source { stream } => stream.is_done(),
+            HandleKind::Transform { transform } => transform.done(),
             HandleKind::Pipeline { source, sink } => {
                 let source_done = source.done()?;
                 let sink_done = match sink {
@@ -346,6 +417,7 @@ impl StreamHandle {
                 }
             }
             HandleKind::Source { .. }
+            | HandleKind::Transform { .. }
             | HandleKind::PcmSink { .. }
             | HandleKind::MidiSink { .. } => self.graph_lisp_atom(),
         }
@@ -358,7 +430,7 @@ impl StreamHandle {
     fn is_source_like(&self) -> bool {
         matches!(
             self.inner.kind,
-            HandleKind::Source { .. } | HandleKind::Pipeline { .. }
+            HandleKind::Source { .. } | HandleKind::Transform { .. } | HandleKind::Pipeline { .. }
         )
     }
 
@@ -428,6 +500,25 @@ impl ObjectCompat for StageHandle {
 fn run_pipeline(source: &StreamHandle, sink: Option<&StreamHandle>) -> Result<RunReport> {
     let mut report = RunReport::default();
     while let Some(item) = source.next_packet()? {
+        report.packets += 1;
+        if let Some(sink) = sink {
+            sink.write_packet(item.packet().clone())?;
+            report.written += 1;
+        }
+    }
+    if let Some(sink) = sink {
+        sink.close_sink()?;
+    }
+    Ok(report)
+}
+
+fn run_pipeline_with_cx(
+    cx: &mut Cx,
+    source: &StreamHandle,
+    sink: Option<&StreamHandle>,
+) -> Result<RunReport> {
+    let mut report = RunReport::default();
+    while let Some(item) = source.next_packet_with_cx(cx)? {
         report.packets += 1;
         if let Some(sink) = sink {
             sink.write_packet(item.packet().clone())?;

@@ -23,6 +23,7 @@ mod handle;
 mod live;
 mod live_control;
 mod spec;
+mod transform;
 
 pub use cap::{
     stream_cancel_capability, stream_control_capability, stream_open_capability,

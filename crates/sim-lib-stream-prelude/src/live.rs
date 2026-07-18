@@ -1,7 +1,7 @@
 use std::{
     collections::BTreeMap,
     sync::{Arc, Mutex},
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use sim_citizen_derive::non_citizen;
@@ -18,15 +18,22 @@ pub struct StreamRuntime {
 
 #[derive(Default)]
 struct LiveState {
-    streams: BTreeMap<Symbol, LiveStream>,
+    catalog_time: Duration,
+    streams: BTreeMap<Symbol, LiveStreamRecord>,
     cells: BTreeMap<Symbol, Arc<LiveCell>>,
     graphs: BTreeMap<Symbol, GraphHandle>,
+}
+
+struct LiveStreamRecord {
+    handle: StreamHandle,
+    opened_at: Duration,
 }
 
 #[derive(Clone)]
 pub struct LiveStream {
     handle: StreamHandle,
-    opened_at: Instant,
+    opened_at: Duration,
+    catalog_time: Duration,
 }
 
 #[non_citizen(
@@ -57,21 +64,44 @@ impl StreamRuntime {
             .state
             .lock()
             .map_err(|_| Error::PoisonedLock("stream live catalog"))?;
+        let opened_at = state.catalog_time;
         state.streams.insert(
             handle.metadata().id().clone(),
-            LiveStream {
-                handle,
-                opened_at: Instant::now(),
-            },
+            LiveStreamRecord { handle, opened_at },
         );
         Ok(())
     }
 
     pub fn stream_entries(&self) -> Result<Vec<LiveStream>> {
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| Error::PoisonedLock("stream live catalog"))?;
+        Ok(state
+            .streams
+            .values()
+            .map(|entry| LiveStream {
+                handle: entry.handle.clone(),
+                opened_at: entry.opened_at,
+                catalog_time: state.catalog_time,
+            })
+            .collect())
+    }
+
+    pub fn advance_time(&self, delta: Duration) -> Result<()> {
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| Error::PoisonedLock("stream live catalog"))?;
+        state.catalog_time = state.catalog_time.saturating_add(delta);
+        Ok(())
+    }
+
+    pub fn catalog_time(&self) -> Result<Duration> {
         self.state
             .lock()
             .map_err(|_| Error::PoisonedLock("stream live catalog"))
-            .map(|state| state.streams.values().cloned().collect())
+            .map(|state| state.catalog_time)
     }
 
     pub fn register_cell(&self, cell: Arc<LiveCell>) -> Result<()> {
@@ -104,7 +134,7 @@ impl StreamRuntime {
         let entries = self.stream_entries()?;
         let mut cancelled = Vec::new();
         for entry in entries {
-            if entry.age() >= age {
+            if entry.age() > age {
                 entry.handle.cancel()?;
                 cancelled.push(entry.handle.metadata().id().clone());
             }
@@ -119,7 +149,7 @@ impl LiveStream {
     }
 
     pub fn age(&self) -> Duration {
-        self.opened_at.elapsed()
+        self.catalog_time.saturating_sub(self.opened_at)
     }
 }
 
@@ -221,5 +251,67 @@ impl ObjectCompat for GraphHandle {
 
     fn as_expr(&self, _cx: &mut Cx) -> Result<Expr> {
         Ok(self.lisp_expr())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{sync::Arc, time::Duration};
+
+    use sim_kernel::Symbol;
+    use sim_lib_stream_core::{
+        BufferPolicy, StreamDirection, StreamMedia, StreamMetadata, StreamValue,
+    };
+
+    use super::*;
+
+    #[test]
+    fn logical_catalog_time_controls_age_and_cancel_thresholds() {
+        let runtime = StreamRuntime::default();
+        let old = source_handle("stream/live-old");
+        runtime.register_stream(old.clone()).unwrap();
+        runtime.advance_time(Duration::from_secs(5)).unwrap();
+        let fresh = source_handle("stream/live-fresh");
+        runtime.register_stream(fresh.clone()).unwrap();
+
+        let entries = runtime.stream_entries().unwrap();
+        assert_eq!(age_of(&entries, "stream/live-old"), Duration::from_secs(5));
+        assert_eq!(
+            age_of(&entries, "stream/live-fresh"),
+            Duration::from_secs(0)
+        );
+
+        assert!(
+            runtime
+                .cancel_older_than(Duration::from_secs(5))
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            runtime.cancel_older_than(Duration::from_secs(4)).unwrap(),
+            vec![Symbol::new("stream/live-old")]
+        );
+        assert!(old.stats().unwrap().cancelled);
+        assert!(!fresh.stats().unwrap().cancelled);
+    }
+
+    fn source_handle(id: &str) -> StreamHandle {
+        let metadata = StreamMetadata::new(
+            Symbol::new(id),
+            StreamMedia::Data,
+            StreamDirection::Source,
+            Symbol::qualified("clock", "data"),
+            BufferPolicy::bounded(4).unwrap(),
+        );
+        let stream = Arc::new(StreamValue::push(metadata.clone()));
+        StreamHandle::source(metadata, stream)
+    }
+
+    fn age_of(entries: &[LiveStream], id: &str) -> Duration {
+        entries
+            .iter()
+            .find(|entry| entry.handle().metadata().id() == &Symbol::new(id))
+            .map(LiveStream::age)
+            .unwrap_or_else(|| panic!("missing live stream {id}"))
     }
 }

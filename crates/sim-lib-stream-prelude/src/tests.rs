@@ -1,3 +1,5 @@
+mod lazy;
+mod live_catalog;
 mod support;
 
 use std::sync::Arc;
@@ -537,6 +539,16 @@ fn cancel_requires_stream_cancel_capability() {
         "(expr:call (expr:symbol \"stream\" \"cancel!\") src)",
     )
     .unwrap();
+}
+
+#[test]
+fn cancel_older_than_requires_stream_control_capability() {
+    let mut cx = cx(&[]);
+    let err = eval_lisp(&mut cx, "(stream/cancel-older-than! 0)").unwrap_err();
+    match err {
+        Error::CapabilityDenied { capability } if capability == stream_control_capability() => {}
+        other => panic!("expected stream.control denial, got {other:?}"),
+    }
 }
 
 #[test]

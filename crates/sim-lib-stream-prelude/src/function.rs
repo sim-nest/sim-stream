@@ -6,7 +6,6 @@ use sim_kernel::{
     AbiVersion, Args, Callable, ClassRef, Cx, Error, Export, Expr, Lib, LibManifest, LibTarget,
     Linker, Object, ObjectCompat, RawArgs, Result, Symbol, Value, Version,
 };
-use sim_lib_stream_combinators::{filter_data_kind, window_by_count};
 use sim_lib_stream_core::{
     StreamPacket, install_stream_core_classes, install_stream_core_shapes_lib,
     stream_cancel_symbol, stream_metadata_symbol, stream_next_symbol, stream_run_symbol,
@@ -22,16 +21,13 @@ use crate::{
     handle::{StageHandle, StreamHandle},
     live::StreamRuntime,
     live_control::{
-        cancel_older_than_fn, cell_fn, cell_set_fn, cell_value_fn, describe_fn,
-        explain_diagnostic_fn, graph_lisp_fn, list_fn, reroute_fn,
+        advance_catalog_time_fn, cancel_older_than_fn, cell_fn, cell_set_fn, cell_value_fn,
+        describe_fn, explain_diagnostic_fn, graph_lisp_fn, list_fn, reroute_fn,
     },
     spec::{memory_specs_value, open_spec_from_expr},
 };
 
-use helpers::{
-    collect_stream_to_handle, data_expr, ensure_done, eval_value, handle_arg, handle_stream,
-    handle_value_from_items, map_data_payload, run_report_value, symbol_arg, usize_arg,
-};
+use helpers::{data_expr, eval_value, handle_arg, run_report_value, symbol_arg, usize_arg};
 
 const STREAM_PRELUDE_LIB_ID: &str = "stream-prelude";
 
@@ -198,6 +194,10 @@ fn stream_reroute_symbol() -> Symbol {
     Symbol::qualified("stream", "reroute!")
 }
 
+fn stream_advance_catalog_time_symbol() -> Symbol {
+    Symbol::qualified("stream", "advance-catalog-time!")
+}
+
 fn stream_cancel_older_than_symbol() -> Symbol {
     Symbol::qualified("stream", "cancel-older-than!")
 }
@@ -239,6 +239,10 @@ fn function_table() -> Vec<(Symbol, StreamFn)> {
         (stream_cell_value_symbol(), cell_value_fn),
         (stream_cell_set_symbol(), cell_set_fn),
         (stream_reroute_symbol(), reroute_fn),
+        (
+            stream_advance_catalog_time_symbol(),
+            advance_catalog_time_fn,
+        ),
         (stream_cancel_older_than_symbol(), cancel_older_than_fn),
         (stream_filter_kind_symbol(), filter_kind_fn),
         (stream_filter_shape_symbol(), filter_shape_fn),
@@ -313,7 +317,8 @@ fn next_fn(_runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Result<Value
             "stream/next! expects one stream handle".to_owned(),
         ));
     };
-    match handle_arg(cx, stream)?.next_packet()? {
+    let handle = handle_arg(cx, stream)?;
+    match handle.next_packet_with_cx(cx)? {
         Some(item) => cx.factory().expr(item.packet().to_expr()),
         None => cx.factory().nil(),
     }
@@ -386,7 +391,8 @@ fn run_fn(_runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Result<Value>
     if stream.is_pipeline_with_sink() {
         cx.require(&stream_push_capability())?;
     }
-    run_report_value(cx, stream.run()?)
+    let report = stream.run_with_cx(cx)?;
+    run_report_value(cx, report)
 }
 
 fn cancel_fn(_runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Result<Value> {
@@ -460,8 +466,8 @@ fn filter_kind_fn(_runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Resul
     };
     let source = handle_arg(cx, stream)?;
     let kind = symbol_arg(cx, kind)?;
-    let transformed = filter_data_kind(handle_stream(source), kind);
-    collect_stream_to_handle(cx, transformed)
+    cx.factory()
+        .opaque(Arc::new(StreamHandle::filter_kind(source, kind)))
 }
 
 fn filter_shape_fn(_runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Result<Value> {
@@ -480,22 +486,8 @@ fn filter_shape_fn(_runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Resu
             found: "non-shape",
         });
     }
-    let metadata = source.metadata().clone();
-    let mut items = Vec::new();
-    while let Some(item) = source.next_packet()? {
-        let StreamPacket::Data(packet) = item.packet() else {
-            continue;
-        };
-        let shape_ref = shape.object().as_shape().ok_or(Error::TypeMismatch {
-            expected: "shape",
-            found: "non-shape",
-        })?;
-        if shape_ref.check_expr(cx, &packet.payload)?.accepted {
-            items.push(item);
-        }
-    }
-    ensure_done(&source, "stream/filter-shape")?;
-    handle_value_from_items(cx, metadata, items)
+    cx.factory()
+        .opaque(Arc::new(StreamHandle::filter_shape(source, shape)))
 }
 
 fn map_expr_fn(_runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Result<Value> {
@@ -514,13 +506,8 @@ fn map_expr_fn(_runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Result<V
             found: "non-callable",
         });
     }
-    let metadata = source.metadata().clone();
-    let mut items = Vec::new();
-    while let Some(item) = source.next_packet()? {
-        items.push(map_data_payload(cx, item, mapper.clone())?);
-    }
-    ensure_done(&source, "stream/map-expr")?;
-    handle_value_from_items(cx, metadata, items)
+    cx.factory()
+        .opaque(Arc::new(StreamHandle::map_expr(source, mapper)))
 }
 
 fn window_fn(_runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Result<Value> {
@@ -537,6 +524,6 @@ fn window_fn(_runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Result<Val
         ));
     }
     let source = handle_arg(cx, stream)?;
-    let transformed = window_by_count(handle_stream(source), count);
-    collect_stream_to_handle(cx, transformed)
+    cx.factory()
+        .opaque(Arc::new(StreamHandle::window(source, count)))
 }
