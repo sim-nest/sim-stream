@@ -1,12 +1,15 @@
 use std::{sync::Arc, time::Duration};
 
 use sim_kernel::{
-    CapabilityName, Consistency, Cx, DefaultFactory, EagerPolicy, Error, EvalFabric, EvalMode,
-    EvalRequest, Expr, Symbol, eval_fabric_capability,
+    Args, CapabilityName, Consistency, Cx, DefaultFactory, EagerPolicy, Error, EvalFabric,
+    EvalMode, EvalRequest, Expr, Symbol, eval_fabric_capability,
 };
 use sim_shape::{ExprKind, ExprKindShape, shape_value};
 
-use crate::{Edge, Graph, Node, PortRef, connection_from_graph, topology_run_capability};
+use crate::{
+    Edge, Graph, Node, PortRef, TopologyConnection, connection_from_graph, install_topology_lib,
+    text::graph_to_expr, topology_run_capability, topology_site_symbol,
+};
 
 #[test]
 fn topology_connection_can_be_used_as_eval_fabric() {
@@ -26,6 +29,37 @@ fn topology_connection_can_be_used_as_eval_fabric() {
         .as_expr(&mut cx)
         .expect("expr output");
     assert_eq!(output, Expr::String("request-ok".to_owned()));
+}
+
+#[test]
+fn topology_lib_registers_callable_site_export() {
+    let mut cx = runtime_cx();
+    install_topology_lib(&mut cx).expect("install topology lib");
+    let site_symbol = topology_site_symbol();
+    let site = cx
+        .registry()
+        .site_by_symbol(&site_symbol)
+        .cloned()
+        .expect("topology site export");
+    let graph = cx
+        .factory()
+        .expr(graph_to_expr(&identity_graph()))
+        .expect("graph value");
+    let callable = site
+        .object()
+        .as_callable()
+        .expect("topology site is callable");
+    let connection = callable
+        .call(&mut cx, Args::new(vec![graph]))
+        .expect("site builds connection");
+
+    assert!(
+        connection
+            .object()
+            .downcast_ref::<TopologyConnection>()
+            .is_some()
+    );
+    assert!(cx.registry().sites().contains_key(&site_symbol));
 }
 
 #[test]

@@ -3,16 +3,17 @@
 //! Connects topology graphs to the kernel `EvalFabric` contract so a topology
 //! can serve as a live, location-transparent eval target.
 
-use std::{any::Any, time::Duration};
+use std::{any::Any, sync::Arc, time::Duration};
 
 use sim_kernel::{
-    CapabilityName, ClassRef, Consistency, Cx, EvalFabric, EvalMode, EvalReply, EvalRequest, Expr,
-    Object, ObjectCompat, Result, Symbol, Value,
+    Args, CORE_FUNCTION_CLASS_ID, Callable, CapabilityName, ClassRef, Consistency, Cx, Error,
+    EvalFabric, EvalMode, EvalReply, EvalRequest, Expr, Object, ObjectCompat, Result, Symbol,
+    Value,
 };
 
 use crate::{
-    CompiledGraph, Graph, capability::topology_run_capability, compile_graph, run::run_graph,
-    run_contract::check_value_shape,
+    CompiledGraph, Graph, capability::topology_run_capability, compile_graph, parse_graph,
+    run::run_graph, run_contract::check_value_shape,
 };
 
 /// Local eval fabric backed by a compiled topology graph.
@@ -25,6 +26,17 @@ use crate::{
 pub struct TopologyConnection {
     source: Graph,
     graph: CompiledGraph,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct TopologySiteFactory {
+    symbol: Symbol,
+}
+
+impl TopologySiteFactory {
+    pub(crate) fn new(symbol: Symbol) -> Self {
+        Self { symbol }
+    }
 }
 
 impl TopologyConnection {
@@ -98,6 +110,45 @@ impl ObjectCompat for TopologyConnection {
 impl EvalFabric for TopologyConnection {
     fn realize(&self, cx: &mut Cx, request: EvalRequest) -> Result<EvalReply> {
         answer_request(cx, self, request)
+    }
+}
+
+impl Object for TopologySiteFactory {
+    fn display(&self, _cx: &mut Cx) -> Result<String> {
+        Ok(format!("#<topology-site {}>", self.symbol))
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl ObjectCompat for TopologySiteFactory {
+    fn class(&self, cx: &mut Cx) -> Result<ClassRef> {
+        cx.factory().class_stub(
+            CORE_FUNCTION_CLASS_ID,
+            Symbol::qualified("core", "Function"),
+        )
+    }
+
+    fn as_callable(&self) -> Option<&dyn Callable> {
+        Some(self)
+    }
+}
+
+impl Callable for TopologySiteFactory {
+    fn call(&self, cx: &mut Cx, args: Args) -> Result<Value> {
+        let values = args.values();
+        if values.len() != 1 {
+            return Err(Error::Eval(format!(
+                "{} expects 1 graph argument, got {}",
+                self.symbol,
+                values.len()
+            )));
+        }
+        let graph = parse_graph(cx, values[0].clone())?;
+        let connection = connection_from_graph(cx, &graph)?;
+        cx.factory().opaque(Arc::new(connection))
     }
 }
 

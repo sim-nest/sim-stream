@@ -54,6 +54,7 @@ pub mod package;
 pub mod parse;
 pub mod patch;
 pub mod place;
+mod place_latency;
 mod record;
 pub mod reflect;
 pub mod registry;
@@ -109,6 +110,7 @@ pub use registry::{
     SharedTopologyRegistry, TopologyEntry, TopologyLib, TopologyRegistry, install_topology_lib,
     manifest_name as topology_manifest_name, topology_def, topology_exports, topology_get,
     topology_list, topology_load_file, topology_load_source, topology_reload, topology_remove,
+    topology_site_symbol,
 };
 pub use replay::{TopologyCounterfactual, counterfactual_replay, replay_report};
 pub use site::{TopologyConnection, connection_from_graph};

@@ -17,6 +17,7 @@ mod runtime;
 
 pub use runtime::{
     SharedTopologyRegistry, TopologyLib, install_topology_lib, manifest_name, topology_exports,
+    topology_site_symbol,
 };
 
 /// Registered topology artifact.

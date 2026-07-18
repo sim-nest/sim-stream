@@ -10,7 +10,7 @@ use sim_kernel::{
 
 use crate::{
     Edge, EdgeId, Graph, Node, PortRef, TopologyCounterfactual, counterfactual_replay,
-    replay_report, topology_reflect_run, topology_run_capability,
+    replay_report, run::TopologyEventKind, topology_reflect_run, topology_run_capability,
 };
 
 #[test]
@@ -27,6 +27,39 @@ fn replay_report_repeats_output_without_calling_target() {
     assert_eq!(replayed, report.output);
     assert_eq!(calls.load(Ordering::SeqCst), 1);
     assert_eq!(report.recorded_replies.len(), 1);
+}
+
+#[test]
+fn replay_report_rejects_tampered_output_evidence() {
+    let mut cx = runtime_cx();
+    register_prefix(&mut cx, "count", "count:");
+    let graph = call_graph("replay-output-tamper", "count");
+    let mut report = topology_reflect_run(&mut cx, &graph, Expr::String("seed".to_owned()))
+        .expect("reflected run");
+    report.output = Expr::String("tampered".to_owned());
+
+    let error = replay_report(&report).expect_err("tampered output should fail");
+
+    assert_replay_error_contains(error, "output does not match output events");
+}
+
+#[test]
+fn replay_report_rejects_tampered_edge_evidence() {
+    let mut cx = runtime_cx();
+    register_prefix(&mut cx, "count", "count:");
+    let graph = call_graph("replay-edge-tamper", "count");
+    let mut report = topology_reflect_run(&mut cx, &graph, Expr::String("seed".to_owned()))
+        .expect("reflected run");
+    let event = report
+        .events
+        .iter_mut()
+        .find(|event| event.kind == TopologyEventKind::EdgeRouted)
+        .expect("edge event");
+    event.edge_index = Some(99);
+
+    let error = replay_report(&report).expect_err("tampered edge should fail");
+
+    assert_replay_error_contains(error, "unknown edge 99");
 }
 
 #[test]
@@ -148,6 +181,16 @@ fn register_counting_prefix(cx: &mut Cx, name: &str, prefix: &'static str) -> Ar
         .register_value(Symbol::qualified("test", name), value)
         .unwrap();
     calls
+}
+
+fn assert_replay_error_contains(error: sim_kernel::Error, expected: &str) {
+    let sim_kernel::Error::Eval(message) = error else {
+        panic!("unexpected replay error: {error}");
+    };
+    assert!(
+        message.contains(expected),
+        "expected {message:?} to contain {expected:?}"
+    );
 }
 
 #[derive(Clone)]

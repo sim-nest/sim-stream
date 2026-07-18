@@ -2,13 +2,13 @@
 
 use std::collections::BTreeMap;
 
-use sim_kernel::{Cx, Result, Symbol};
+use sim_kernel::{Cx, Error, Export, Result, Symbol};
 use sim_lib_stream_core::{
     BridgeLatency, ClockDomain, DomainBridgeDescriptor, DomainBridgeKind, LatencyClass,
     RateContract,
 };
 
-use crate::{CompiledGraph, EdgeId, Graph, NodeId, compile_graph};
+use crate::{CompiledGraph, EdgeId, Graph, NodeId, compile_graph, place_latency};
 
 /// Identifier for a placement site: a named host that nodes can be assigned to.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -18,6 +18,11 @@ impl SiteId {
     /// Builds a site id from a name.
     pub fn new(name: impl Into<String>) -> Self {
         Self(Symbol::new(name.into()))
+    }
+
+    /// Builds a site id from a runtime export symbol.
+    pub fn from_symbol(symbol: Symbol) -> Self {
+        Self(symbol)
     }
 
     /// Returns the underlying symbol.
@@ -43,8 +48,11 @@ impl From<String> for SiteId {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SiteProfile {
     id: SiteId,
+    export: Export,
     latency_classes: Vec<LatencyClass>,
+    clock_domains: Vec<ClockDomain>,
     audio_clock: bool,
+    stream_ports: bool,
 }
 
 impl SiteProfile {
@@ -54,11 +62,41 @@ impl SiteProfile {
         latency_classes: Vec<LatencyClass>,
         audio_clock: bool,
     ) -> Self {
+        let id = id.into();
+        let export = Export::Site {
+            symbol: id.as_symbol().clone(),
+            runtime_id: None,
+        };
         Self {
-            id: id.into(),
+            id,
+            export,
+            clock_domains: default_clock_domains(audio_clock),
             latency_classes,
             audio_clock,
+            stream_ports: true,
         }
+    }
+
+    /// Builds a placement profile from a kernel runtime site export and
+    /// topology site claims.
+    pub fn from_site_export(
+        export: Export,
+        latency_classes: Vec<LatencyClass>,
+        audio_clock: bool,
+    ) -> Result<Self> {
+        let Export::Site { symbol, .. } = &export else {
+            return Err(Error::Eval(
+                "topology placement site requires a kernel site export".to_owned(),
+            ));
+        };
+        Ok(Self {
+            id: SiteId::from_symbol(symbol.clone()),
+            export,
+            clock_domains: default_clock_domains(audio_clock),
+            latency_classes,
+            audio_clock,
+            stream_ports: true,
+        })
     }
 
     /// Preset for an audio-clock site that serves sample-exact through render
@@ -110,9 +148,36 @@ impl SiteProfile {
         &self.id
     }
 
+    /// Returns the kernel site export this placement profile describes.
+    pub fn site_export(&self) -> &Export {
+        &self.export
+    }
+
     /// Reports whether this site serves the given latency class.
     pub fn supports_latency_class(&self, latency_class: LatencyClass) -> bool {
         self.latency_classes.contains(&latency_class)
+    }
+
+    /// Sets the clock domains represented by this runtime site contract.
+    pub fn with_clock_domains(mut self, clock_domains: Vec<ClockDomain>) -> Self {
+        self.clock_domains = clock_domains;
+        self
+    }
+
+    /// Reports whether this site represents the given clock domain.
+    pub fn supports_clock_domain(&self, clock_domain: ClockDomain) -> bool {
+        self.clock_domains.contains(&clock_domain)
+    }
+
+    /// Sets whether this site can host stream-mode topology ports.
+    pub fn with_stream_ports(mut self, stream_ports: bool) -> Self {
+        self.stream_ports = stream_ports;
+        self
+    }
+
+    /// Reports whether this site can host stream-mode topology ports.
+    pub fn supports_stream_ports(&self) -> bool {
+        self.stream_ports
     }
 
     /// Reports whether this site can host the audio (sample) clock.
@@ -331,6 +396,13 @@ pub enum PlacementRefusalReason {
     RealtimePinViolation,
     /// The site does not serve the node's latency class.
     UnsupportedLatencyClass,
+    /// The site does not represent the node's clock domain.
+    UnsupportedClockDomain {
+        /// The requested clock domain.
+        domain: ClockDomain,
+    },
+    /// The site does not claim support for stream-mode topology ports.
+    UnsupportedStreamPorts,
     /// The edge crosses clock domains that have no semantic bridge.
     IncomparableClockDomain {
         /// The source node's clock domain.
@@ -375,7 +447,7 @@ pub fn place_graph(graph: &CompiledGraph, sites: &SiteMap) -> PlacementReport {
     let placed = placed_nodes(graph, sites);
     let refusals = placement_refusals(graph, sites);
     let bridges = domain_bridges(graph, sites);
-    let latency = latency_budget(graph, sites, &bridges);
+    let latency = place_latency::latency_budget(graph, sites, &bridges);
     PlacementReport {
         placed,
         bridges,
@@ -424,8 +496,24 @@ fn placement_refusals(graph: &CompiledGraph, sites: &SiteMap) -> Vec<PlacementRe
         if !site.supports_latency_class(profile.rate_contract().latency_class()) {
             refusals.push(PlacementRefusal {
                 node: node.id.clone(),
-                site: site_id,
+                site: site_id.clone(),
                 reason: PlacementRefusalReason::UnsupportedLatencyClass,
+            });
+        }
+        if !site.supports_clock_domain(profile.rate_contract().clock_domain()) {
+            refusals.push(PlacementRefusal {
+                node: node.id.clone(),
+                site: site_id.clone(),
+                reason: PlacementRefusalReason::UnsupportedClockDomain {
+                    domain: profile.rate_contract().clock_domain(),
+                },
+            });
+        }
+        if node.has_stream_ports && !site.supports_stream_ports() {
+            refusals.push(PlacementRefusal {
+                node: node.id.clone(),
+                site: site_id,
+                reason: PlacementRefusalReason::UnsupportedStreamPorts,
             });
         }
     }
@@ -527,57 +615,22 @@ fn bridge_plan(from: RateContract, to: RateContract, crosses_site: bool) -> Brid
     }
 }
 
-fn latency_budget(
-    graph: &CompiledGraph,
-    sites: &SiteMap,
-    bridges: &[DomainBridge],
-) -> Vec<PortLatency> {
-    let bridge_latency = bridges
-        .iter()
-        .map(|bridge| (bridge.edge, bridge.descriptor.latency()))
-        .collect::<BTreeMap<_, _>>();
-    let mut budgets = vec![BridgeLatency::zero(); graph.nodes.len()];
-
-    for node_index in 0..graph.nodes.len() {
-        let node = &graph.nodes[node_index];
-        budgets[node_index] = budgets[node_index].plus(sites.profile_for(&node.id).latency());
-        for edge_index in &graph.outgoing_edges[node_index] {
-            let edge = &graph.edges[*edge_index];
-            let candidate = budgets[node_index].plus(
-                *bridge_latency
-                    .get(&edge.id)
-                    .unwrap_or(&BridgeLatency::zero()),
-            );
-            let target = &mut budgets[edge.to_node];
-            *target = max_latency(*target, candidate);
-        }
-    }
-
-    graph
-        .output_nodes
-        .iter()
-        .map(|node_index| {
-            let node = &graph.nodes[*node_index];
-            let profile = sites.profile_for(&node.id);
-            PortLatency {
-                node: node.id.clone(),
-                site: sites.site_for(&node.id).clone(),
-                latency: budgets[*node_index],
-                latency_class: profile.rate_contract().latency_class(),
-            }
-        })
-        .collect()
-}
-
 fn requires_audio_clock(profile: &PlacementNodeProfile) -> bool {
     profile.realtime_pin() || profile.rate_contract().clock_domain() == ClockDomain::Sample
 }
 
-fn max_latency(left: BridgeLatency, right: BridgeLatency) -> BridgeLatency {
-    BridgeLatency::frames_and_packets(
-        left.frame_count().max(right.frame_count()),
-        left.packet_count().max(right.packet_count()),
-    )
+fn default_clock_domains(audio_clock: bool) -> Vec<ClockDomain> {
+    let mut domains = vec![
+        ClockDomain::Block,
+        ClockDomain::Control,
+        ClockDomain::MidiTick,
+        ClockDomain::Wall,
+        ClockDomain::Job,
+    ];
+    if audio_clock {
+        domains.insert(0, ClockDomain::Sample);
+    }
+    domains
 }
 
 impl DomainBridge {
