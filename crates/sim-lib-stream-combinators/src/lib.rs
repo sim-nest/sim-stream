@@ -1,10 +1,10 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
-//! Lazy in-memory stream combinators for STREAM 6.
+//! Lazy in-memory combinators for SIM stream packets.
 //!
 //! This crate composes stream-core packet spines without talking to devices,
-//! files, or transports. Later Lisp and remote surfaces can lower graph forms
-//! into these Rust-level combinators.
+//! files, or transports. Runtime surfaces lower graph forms into these
+//! Rust-level combinators.
 
 mod bridge;
 mod cell;

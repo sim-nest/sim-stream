@@ -139,7 +139,7 @@
           "target": null
         }
       ],
-      "description": "RANK 6 coordinate, codec, order, search, and optional domain spaces.",
+      "description": "Coordinate, codec, order, search, and optional domain rank spaces.",
       "features": [
         {
           "edges": [],
@@ -179,7 +179,7 @@
       "name": "sim-lib-rank",
       "publish": "true",
       "root": "crates/sim-lib-rank",
-      "rustdoc_summary": "RANK 6 coordinate, codec, order, search, and optional domain spaces.",
+      "rustdoc_summary": "Coordinate, codec, order, search, and optional domain rank spaces.",
       "target_kinds": [
         "custom-build",
         "lib"
@@ -218,14 +218,14 @@
           "target": null
         }
       ],
-      "description": "PCM source and sink adapters for STREAM 6.",
+      "description": "PCM source and sink adapters for SIM stream packets.",
       "features": [],
       "group": "workspace",
       "manifest": "crates/sim-lib-stream-audio/Cargo.toml",
       "name": "sim-lib-stream-audio",
       "publish": "true",
       "root": "crates/sim-lib-stream-audio",
-      "rustdoc_summary": "PCM source and sink adapters for STREAM 6.",
+      "rustdoc_summary": "PCM source and sink adapters for SIM stream packets.",
       "target_kinds": [
         "custom-build",
         "lib"
@@ -264,14 +264,14 @@
           "target": null
         }
       ],
-      "description": "Clock charts and tick conversion helpers for STREAM 6.",
+      "description": "Clock charts and tick conversion helpers for SIM streams.",
       "features": [],
       "group": "workspace",
       "manifest": "crates/sim-lib-stream-clock/Cargo.toml",
       "name": "sim-lib-stream-clock",
       "publish": "true",
       "root": "crates/sim-lib-stream-clock",
-      "rustdoc_summary": "Clock charts and tick conversion helpers for STREAM 6.",
+      "rustdoc_summary": "Clock charts and tick conversion helpers for SIM streams.",
       "target_kinds": [
         "custom-build",
         "lib"
@@ -317,14 +317,14 @@
           "target": null
         }
       ],
-      "description": "Lazy in-memory stream combinators for STREAM 6.",
+      "description": "Lazy in-memory combinators for SIM stream packets.",
       "features": [],
       "group": "workspace",
       "manifest": "crates/sim-lib-stream-combinators/Cargo.toml",
       "name": "sim-lib-stream-combinators",
       "publish": "true",
       "root": "crates/sim-lib-stream-combinators",
-      "rustdoc_summary": "Lazy in-memory stream combinators for STREAM 6.",
+      "rustdoc_summary": "Lazy in-memory combinators for SIM stream packets.",
       "target_kinds": [
         "custom-build",
         "lib"
@@ -415,14 +415,14 @@
           "target": null
         }
       ],
-      "description": "Lisp-facing STREAM 6 prelude for memory streams.",
+      "description": "Lisp-facing prelude for SIM memory streams.",
       "features": [],
       "group": "workspace",
       "manifest": "crates/sim-lib-stream-prelude/Cargo.toml",
       "name": "sim-lib-stream-prelude",
       "publish": "true",
       "root": "crates/sim-lib-stream-prelude",
-      "rustdoc_summary": "Lisp-facing STREAM 6 prelude for memory streams.",
+      "rustdoc_summary": "Lisp-facing prelude for SIM memory streams.",
       "target_kinds": [
         "custom-build",
         "lib"
@@ -499,14 +499,14 @@
     {
       "crate_name": "xtask",
       "dependencies": [],
-      "description": "SIM workspace package for xtask.",
+      "description": "Repository maintenance tasks for sim-stream.",
       "features": [],
       "group": "workspace",
       "manifest": "xtask/Cargo.toml",
       "name": "xtask",
       "publish": "false",
       "root": "xtask",
-      "rustdoc_summary": "SIM workspace package for xtask.",
+      "rustdoc_summary": "Repository maintenance tasks for sim-stream.",
       "target_kinds": [
         "bin"
       ],
@@ -529,10 +529,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-15T01:30:25+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "02c69e8ce5e90ac6e01dc781212a3d2ff71bfd43",
+    "git_commit": "84e0ea2970bf73136e0d700f9ce81bd243dc6f32",
     "repo": "sim-stream",
     "schema": "sim.provenance.v1",
-    "source_commit": "02c69e8ce5e90ac6e01dc781212a3d2ff71bfd43",
+    "source_commit": "84e0ea2970bf73136e0d700f9ce81bd243dc6f32",
     "source_remote": "https://github.com/sim-nest/sim-stream",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -545,7 +545,7 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "b8355eb77ca2bea4",
+    "workspace_hash": "4af99c4e8e5a31f1",
     "workspace_hash_algorithm": "fnv1a64",
     "workspace_hash_input_count": 238,
     "workspace_hash_inputs": [

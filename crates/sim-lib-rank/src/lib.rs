@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
-//! RANK 6 coordinate, codec, order, search, and optional domain spaces.
+//! Coordinate, codec, order, search, and optional domain rank spaces.
 pub mod builder;
 pub mod cap;
 pub mod claims;

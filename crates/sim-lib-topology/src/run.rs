@@ -343,7 +343,7 @@ impl<'a> TopologyRun<'a> {
         &self.cells
     }
 
-    /// Converts outputs to the P6 graph return expression.
+    /// Converts outputs to the graph return expression.
     pub fn output_expr(&self) -> Expr {
         match self.outputs.as_slice() {
             [] => Expr::Nil,

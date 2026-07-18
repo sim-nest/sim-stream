@@ -84,7 +84,7 @@ impl Default for StreamClockDescriptor {
     }
 }
 
-/// Returns the `stream/Clock` class symbol used to register and look up
+/// Returns the `stream/Clock` class symbol for registering and looking up
 /// [`StreamClockDescriptor`] values.
 pub fn stream_clock_class_symbol() -> Symbol {
     Symbol::qualified("stream", "Clock")

@@ -1,9 +1,9 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
-//! Clock charts and tick conversion helpers for STREAM 6.
+//! Clock charts and tick conversion helpers for SIM streams.
 //!
 //! The crate keeps clock math in library space. Kernel events still carry only
-//! KERNEL 6 `Tick` values, with clock indexes interned as datum content refs.
+//! kernel `Tick` values, with clock indexes interned as datum content refs.
 
 mod citizen;
 mod clock;

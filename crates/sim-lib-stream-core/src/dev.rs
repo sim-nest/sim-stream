@@ -45,7 +45,7 @@ impl MediaDescriptor {
         &self.symbol
     }
 
-    /// Returns the envelope media used to carry this descriptor.
+    /// Returns the envelope media carrying this descriptor.
     pub fn stream_media(&self) -> StreamMedia {
         self.stream_media
     }

@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
-//! Lisp-facing STREAM 6 prelude for memory streams.
+//! Lisp-facing prelude for SIM memory streams.
 //!
 //! This is the umbrella crate that composes the streaming fabric (core, audio,
 //! and combinators) into a single host-registered library. It installs

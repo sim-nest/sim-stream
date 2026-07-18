@@ -103,9 +103,9 @@ impl ClockDomain {
 
     /// Parses a [`ClockDomain`] from a kernel [`Symbol`].
     ///
-    /// Accepts the bare label, the legacy `clock/<label>` form, and the fully
-    /// qualified `stream/clock-domain/<label>` form. Returns an error for any
-    /// unrecognized clock domain.
+    /// Accepts the bare label, the compatibility `clock/<label>` form, and the
+    /// fully qualified `stream/clock-domain/<label>` form. Returns an error for
+    /// any unrecognized clock domain.
     pub fn from_symbol(symbol: &Symbol) -> Result<Self> {
         match symbol.as_qualified_str().as_str() {
             "sample" | "clock/sample" | "stream/clock-domain/sample" => Ok(Self::Sample),

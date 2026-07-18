@@ -79,9 +79,8 @@ pub enum StageKind {
 )]
 /// Handle to a pipeline stage placed between a source and a sink.
 ///
-/// In STREAM 6 the only stage is the identity stage (see
-/// [`StageHandle::identity`]); `stream/pipe` accepts identity stages and rejects
-/// any other stage kind.
+/// The identity stage is the built-in stage (see [`StageHandle::identity`]);
+/// `stream/pipe` accepts identity stages and rejects any other stage kind.
 #[derive(Clone, Debug)]
 pub struct StageHandle {
     kind: StageKind,

@@ -44,7 +44,7 @@ pub trait GroupCodec: Send + Sync + std::fmt::Debug {
 /// Grade-grouped [`RankCodec`] over a single grammar with bounded resources.
 ///
 /// Holds the grammar, resource limits, and a shared grade compiler that caches
-/// the per-grade counts used to offset and locate ordinals.
+/// the per-grade counts for offsetting and locating ordinals.
 #[derive(Debug)]
 pub struct RankGroupCodec {
     grammar: RankGrammar,

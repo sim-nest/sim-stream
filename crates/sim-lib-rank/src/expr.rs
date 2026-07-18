@@ -178,7 +178,7 @@ pub fn rank_expr_size_first_order(codec: &RankExprCodec) -> RankResult<RankExact
     )
 }
 
-/// Returns the lexicographic sort key used to canonically order expressions.
+/// Returns the lexicographic sort key for canonical expression ordering.
 pub fn rank_expr_lex_key(expr: &Expr) -> String {
     match expr {
         Expr::Nil => "nil".to_owned(),

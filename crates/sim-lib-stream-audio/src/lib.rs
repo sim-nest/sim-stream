@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
-//! PCM source and sink adapters for STREAM 6.
+//! PCM source and sink adapters for SIM stream packets.
 //!
 //! This crate keeps PCM I/O in library space. The in-memory source and sink
 //! are deterministic test backends; stream observation still goes through

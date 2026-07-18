@@ -31,7 +31,7 @@ use helpers::{data_expr, eval_value, handle_arg, run_report_value, symbol_arg, u
 
 const STREAM_PRELUDE_LIB_ID: &str = "stream-prelude";
 
-/// Host-registered library that installs the STREAM 6 prelude functions.
+/// Host-registered library that installs the stream prelude functions.
 ///
 /// [`StreamPreludeLib`] reports a [`LibManifest`] exporting the memory-spec
 /// catalog value plus every capability-gated stream function, and on load it

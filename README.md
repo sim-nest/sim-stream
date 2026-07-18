@@ -89,10 +89,16 @@ sources, sinks, pipelines, and combinator stages share a single packet model.
 
 ## Validation
 
-These commands run in the constellation workspace; only `sim-kernel` builds from a lone clone today (see `DEVELOPING.md` in `sim-sdk`). A single-repo build lands with the first crates.io publish.
+This repo is self-contained and validates against published SIM crates plus its
+own workspace members.
 
 ```bash
-cargo fmt --check && cargo test --workspace && cargo clippy --workspace -- -D warnings && cargo doc --workspace --no-deps
+cargo fmt --all --check
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
+cargo doc --workspace --no-deps
+cargo clippy --workspace --all-features --all-targets -- -D warnings
+cargo test --workspace --all-features
 cargo run -p xtask -- simdoc --check
 ```
 

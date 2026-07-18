@@ -14,7 +14,7 @@ pub fn parse_diagram(source: &str) -> Result<Expr> {
     graph_from_diagram(source).map(|graph| graph_to_expr(&graph))
 }
 
-/// Alias for the planned Lisp-facing diagram operation.
+/// Alias used by the runtime registry for the diagram operation.
 pub fn draw(source: &str) -> Result<Expr> {
     parse_diagram(source)
 }

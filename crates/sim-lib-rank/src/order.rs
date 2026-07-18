@@ -1,8 +1,8 @@
 //! Exact (fully materialized) orderings over a ranked ordinal space.
 //!
 //! Defines [`RankExactOrder`], a total ordering that maps positions to
-//! canonical ordinals and back, used to impose a learned or constructed rank
-//! order on the candidates a codec enumerates.
+//! canonical ordinals and back, imposing a learned or constructed rank order on
+//! the candidates a codec enumerates.
 
 use std::collections::BTreeSet;
 

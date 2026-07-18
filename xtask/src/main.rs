@@ -1,4 +1,5 @@
 #![forbid(unsafe_code)]
+//! Repository maintenance tasks for sim-stream.
 
 mod simdoc;
 

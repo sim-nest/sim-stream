@@ -3,7 +3,7 @@ name = "sim-lib-stream-clock"
 version = "0.1.1"
 edition = "2024"
 license = "MPL-2.0"
-description = "Clock charts and tick conversion helpers for STREAM 6."
+description = "Clock charts and tick conversion helpers for SIM streams."
 readme = "README.md"
 publish = true
 repository = "https://github.com/sim-nest/sim-stream"
@@ -16,6 +16,9 @@ sim-citizen-derive = { version = "0.1.0" }
 sim-kernel = { version = "0.1.0" }
 sim-value = { version = "0.1.0" }
 sim-lib-stream-core = { version = "0.1.0", path = "../sim-lib-stream-core" }
+
+[lints]
+workspace = true
 
 [build-dependencies]
 sim-cookbook = { version = "0.1.0" }

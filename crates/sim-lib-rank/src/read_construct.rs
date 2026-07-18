@@ -1,7 +1,7 @@
 //! Conversions between rank nodes/coordinates and kernel expressions.
 //!
-//! Encodes a [`RankNode`] or coordinate into the kernel `Expr` form used to
-//! construct runtime objects, and decodes the same extension form back into a
+//! Encodes a [`RankNode`] or coordinate into the kernel `Expr` form that
+//! constructs runtime objects, and decodes the same extension form back into a
 //! node.
 
 use std::str::FromStr;
