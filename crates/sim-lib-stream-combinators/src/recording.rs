@@ -210,13 +210,14 @@ pub fn replay_cassette(cassette: &StreamCassette) -> Result<Stream> {
 
 /// Returns a stream that skips ahead in `source` to the first packet at `target`.
 ///
-/// The stream then continues from that packet; if no packet matches, it is
-/// empty.
+/// The stream then continues from that packet. If a live source is temporarily
+/// empty before the target arrives, seeking stays pending; if the source reaches
+/// terminal `done` without a match, the seek stream is empty.
 pub fn seek(source: Stream, target: SeekTarget) -> Stream {
     Stream::new(SeekNode {
         source,
         target,
-        state: Mutex::new(SeekState::Pending),
+        state: Mutex::new(SeekState::Pending { skipped: 0 }),
     })
 }
 
@@ -323,8 +324,14 @@ struct SeekNode {
 }
 
 enum SeekState {
-    Pending,
+    Pending { skipped: usize },
     Ready,
+    Drained,
+}
+
+enum SeekPoll {
+    Found(StreamItem),
+    Pending,
     Drained,
 }
 
@@ -341,14 +348,19 @@ impl StreamNode for SeekNode {
         match *state {
             SeekState::Ready => self.source.next_packet(),
             SeekState::Drained => Ok(None),
-            SeekState::Pending => {
-                let item = seek_first(&self.source, &self.target)?;
-                *state = if item.is_some() {
-                    SeekState::Ready
-                } else {
-                    SeekState::Drained
-                };
-                Ok(item)
+            SeekState::Pending { ref mut skipped } => {
+                let poll = seek_first(&self.source, &self.target, skipped)?;
+                match poll {
+                    SeekPoll::Found(item) => {
+                        *state = SeekState::Ready;
+                        Ok(Some(item))
+                    }
+                    SeekPoll::Pending => Ok(None),
+                    SeekPoll::Drained => {
+                        *state = SeekState::Drained;
+                        Ok(None)
+                    }
+                }
             }
         }
     }
@@ -360,32 +372,56 @@ impl StreamNode for SeekNode {
             .map_err(|_| Error::PoisonedLock("seek stream"))?;
         match *state {
             SeekState::Drained => Ok(true),
-            SeekState::Pending | SeekState::Ready => self.source.is_done(),
+            SeekState::Pending { .. } | SeekState::Ready => self.source.is_done(),
         }
     }
 }
 
-fn seek_first(source: &Stream, target: &SeekTarget) -> Result<Option<StreamItem>> {
+fn seek_first(source: &Stream, target: &SeekTarget, skipped: &mut usize) -> Result<SeekPoll> {
     match target {
         SeekTarget::PacketIndex(index) => {
-            for _ in 0..*index {
-                if source.next_packet()?.is_none() {
-                    return Ok(None);
+            while *skipped < *index {
+                match source.next_packet()? {
+                    Some(_) => *skipped += 1,
+                    None => {
+                        return if source.is_done()? {
+                            Ok(SeekPoll::Drained)
+                        } else {
+                            Ok(SeekPoll::Pending)
+                        };
+                    }
                 }
             }
-            source.next_packet()
-        }
-        SeekTarget::ClockIndex { clock, index } => {
-            while let Some(item) = source.next_packet()? {
-                if item
-                    .ticks()
-                    .iter()
-                    .any(|tick| &tick.clock == clock && &tick.index == index)
-                {
-                    return Ok(Some(item));
+            match source.next_packet()? {
+                Some(item) => Ok(SeekPoll::Found(item)),
+                None => {
+                    if source.is_done()? {
+                        Ok(SeekPoll::Drained)
+                    } else {
+                        Ok(SeekPoll::Pending)
+                    }
                 }
             }
-            Ok(None)
         }
+        SeekTarget::ClockIndex { clock, index } => loop {
+            match source.next_packet()? {
+                Some(item) => {
+                    if item
+                        .ticks()
+                        .iter()
+                        .any(|tick| &tick.clock == clock && &tick.index == index)
+                    {
+                        return Ok(SeekPoll::Found(item));
+                    }
+                }
+                None => {
+                    return if source.is_done()? {
+                        Ok(SeekPoll::Drained)
+                    } else {
+                        Ok(SeekPoll::Pending)
+                    };
+                }
+            }
+        },
     }
 }

@@ -20,6 +20,8 @@ use crate::{
     stream_cell, stream_window_data_kind, tap_diagnostics, window_by_count,
 };
 
+mod live_completion;
+
 fn metadata() -> StreamMetadata {
     StreamMetadata::new(
         Symbol::qualified("stream", "combinator-test"),

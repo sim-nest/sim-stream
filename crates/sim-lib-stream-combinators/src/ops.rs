@@ -200,7 +200,9 @@ pub fn take_stage(limit: usize) -> StreamStage {
 /// Returns a stream that batches packets into windows of `count` packets each.
 ///
 /// Each window is emitted as a data packet of [`stream_window_data_kind`]
-/// whose payload lists the windowed packets; a trailing partial window is kept.
+/// whose payload lists the windowed packets. A trailing partial window is
+/// emitted only once the source reaches terminal `done`; temporary live gaps
+/// leave the partial window buffered.
 pub fn window_by_count(source: Stream, count: usize) -> Stream {
     nodes::window_by_count(source, count)
 }

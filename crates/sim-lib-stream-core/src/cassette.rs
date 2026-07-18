@@ -4,8 +4,8 @@
 //! metadata, the ordered envelopes it produced, derived timing, accumulated
 //! diagnostics, and the final stats -- so that the same trace can be replayed
 //! as a fresh [`StreamValue`] or persisted as a golden fixture for tests. The
-//! kernel supplies the protocol types ([`Expr`], [`Symbol`], [`Error`]) used to
-//! serialize a cassette; this module supplies the concrete streaming-fabric
+//! kernel supplies the protocol types ([`Expr`], [`Symbol`], [`Error`]) for
+//! cassette serialization; this module supplies the concrete streaming-fabric
 //! behavior that records, redacts, validates, and round-trips those traces.
 
 use sim_kernel::{Error, Expr, Result, Symbol};
@@ -88,13 +88,20 @@ pub struct StreamGoldenFixtureReport {
 impl StreamCassette {
     /// Records a cassette by draining every packet from a live stream.
     ///
-    /// Pulls packets until the stream is exhausted, snapshots its final stats,
-    /// and builds the cassette from the metadata, drained items, and the given
-    /// [`TransportProfile`].
+    /// Pulls currently available packets until the stream reports terminal
+    /// `done`, snapshots its final stats, and builds the cassette from the
+    /// metadata, drained items, and the given [`TransportProfile`]. An
+    /// empty-but-open live stream is rejected because a cassette is a finite
+    /// replay artifact.
     pub fn from_stream_value(stream: &StreamValue, profile: TransportProfile) -> Result<Self> {
         let mut items = Vec::new();
         while let Some(item) = stream.next_packet()? {
             items.push(item);
+        }
+        if !stream.is_done()? {
+            return Err(Error::Eval(
+                "cannot record a cassette from a stream that has not reached done".to_owned(),
+            ));
         }
         let final_stats = stream.stats()?;
         Self::from_items(stream.metadata().clone(), items, profile, final_stats)

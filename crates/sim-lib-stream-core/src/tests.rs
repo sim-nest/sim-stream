@@ -19,6 +19,7 @@ use crate::{
 };
 
 mod codec;
+mod live_completion;
 mod profile;
 
 use sim_kernel::testing::bare_cx as cx;

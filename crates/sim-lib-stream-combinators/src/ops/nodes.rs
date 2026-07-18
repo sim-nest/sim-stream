@@ -50,6 +50,7 @@ pub(super) fn window_by_count(source: Stream, count: usize) -> Stream {
         source,
         count,
         metadata,
+        state: Mutex::new(WindowState::default()),
     })
 }
 
@@ -279,6 +280,13 @@ struct WindowNode {
     source: Stream,
     count: usize,
     metadata: StreamMetadata,
+    state: Mutex<WindowState>,
+}
+
+#[derive(Default)]
+struct WindowState {
+    items: Vec<StreamItem>,
+    source_done: bool,
 }
 
 impl StreamNode for WindowNode {
@@ -292,21 +300,38 @@ impl StreamNode for WindowNode {
                 "stream/window count must be greater than zero".to_owned(),
             ));
         }
-        let mut items = Vec::new();
-        for _ in 0..self.count {
-            let Some(item) = self.source.next_packet()? else {
-                break;
-            };
-            items.push(item);
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| Error::PoisonedLock("window stream"))?;
+        while state.items.len() < self.count && !state.source_done {
+            match self.source.next_packet()? {
+                Some(item) => state.items.push(item),
+                None => {
+                    if self.source.is_done()? {
+                        state.source_done = true;
+                    } else {
+                        return Ok(None);
+                    }
+                }
+            }
         }
-        if items.is_empty() {
+        if state.items.is_empty() {
             return Ok(None);
         }
+        if state.items.len() < self.count && !state.source_done {
+            return Ok(None);
+        }
+        let items = std::mem::take(&mut state.items);
         window_item(items).map(Some)
     }
 
     fn is_done(&self) -> Result<bool> {
-        self.source.is_done()
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| Error::PoisonedLock("window stream"))?;
+        Ok(state.items.is_empty() && (state.source_done || self.source.is_done()?))
     }
 }
 
@@ -468,18 +493,28 @@ impl StreamNode for FanReader {
                 Ok(Some(item))
             }
             None => {
-                state.done = true;
+                if self.source.is_done()? {
+                    state.done = true;
+                }
                 Ok(None)
             }
         }
     }
 
     fn is_done(&self) -> Result<bool> {
-        let state = self
+        let mut state = self
             .state
             .lock()
             .map_err(|_| Error::PoisonedLock("fan stream"))?;
-        Ok(state.done && state.cursors[self.id] >= state.base + state.history.len())
+        let reader_caught_up = state.cursors[self.id] >= state.base + state.history.len();
+        if state.done {
+            return Ok(reader_caught_up);
+        }
+        if reader_caught_up && self.source.is_done()? {
+            state.done = true;
+            return Ok(true);
+        }
+        Ok(false)
     }
 }
 
