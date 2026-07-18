@@ -3,9 +3,8 @@
 use std::collections::BTreeMap;
 
 use sim_kernel::{Cx, Error, Expr, Result, Symbol};
-use sim_shape::parse_shape_expr;
 
-use crate::{Cell, Graph};
+use crate::{Cell, Graph, run_contract::check_expr_shape};
 
 /// Mutable state cells for one topology run.
 #[derive(Clone, Debug)]
@@ -85,18 +84,12 @@ impl TopologyCells {
     }
 
     fn check_shape(&self, cx: &mut Cx, name: &Symbol, value: &Expr) -> Result<()> {
-        let Some(shape_expr) = self.spec(name)?.shape.as_ref() else {
-            return Ok(());
-        };
-        let shape = parse_shape_expr(shape_expr)?;
-        let matched = shape.check_expr(cx, value)?;
-        if matched.accepted {
-            Ok(())
-        } else {
-            Err(Error::Eval(format!(
-                "topology run: value rejected by shape for cell {name}"
-            )))
-        }
+        check_expr_shape(
+            cx,
+            format!("cell {name}"),
+            self.spec(name)?.shape.as_ref(),
+            value,
+        )
     }
 }
 

@@ -1,9 +1,10 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use sim_kernel::{
     CapabilityName, Consistency, Cx, DefaultFactory, EagerPolicy, Error, EvalFabric, EvalMode,
     EvalRequest, Expr, Symbol, eval_fabric_capability,
 };
+use sim_shape::{ExprKind, ExprKindShape, shape_value};
 
 use crate::{Edge, Graph, Node, PortRef, connection_from_graph, topology_run_capability};
 
@@ -103,11 +104,115 @@ fn topology_connection_requires_topology_run_capability() {
     assert_eq!(capability, topology_run_capability());
 }
 
+#[test]
+fn topology_connection_rejects_wrong_result_shape() {
+    let mut cx = runtime_cx();
+    let connection = connection_from_graph(&mut cx, &identity_graph()).expect("connection");
+    let mut request = eval_request(Expr::String("wrong-shape".to_owned()));
+    request.result_shape = Some(shape_value(
+        Symbol::qualified("test", "bool-result"),
+        Arc::new(ExprKindShape::new(ExprKind::Bool)),
+    ));
+
+    let error = match connection.realize(&mut cx, request) {
+        Ok(_) => panic!("result shape should reject string"),
+        Err(error) => error,
+    };
+
+    assert_eval_error_contains(error, "request result");
+}
+
+#[test]
+fn topology_connection_rejects_unsupported_request_mode() {
+    let mut cx = runtime_cx();
+    let connection = connection_from_graph(&mut cx, &identity_graph()).expect("connection");
+    let mut request = eval_request(Expr::String("logic".to_owned()));
+    request.mode = EvalMode::Logic;
+
+    let error = match connection.realize(&mut cx, request) {
+        Ok(_) => panic!("logic mode should be rejected"),
+        Err(error) => error,
+    };
+
+    assert_eval_error_contains(error, "unsupported eval mode");
+}
+
+#[test]
+fn topology_connection_rejects_zero_answer_limit() {
+    let mut cx = runtime_cx();
+    let connection = connection_from_graph(&mut cx, &identity_graph()).expect("connection");
+    let mut request = eval_request(Expr::String("limit".to_owned()));
+    request.answer_limit = Some(0);
+
+    let error = match connection.realize(&mut cx, request) {
+        Ok(_) => panic!("zero answer limit should be rejected"),
+        Err(error) => error,
+    };
+
+    assert_eval_error_contains(error, "answer_limit");
+}
+
+#[test]
+fn topology_connection_rejects_stream_request() {
+    let mut cx = runtime_cx();
+    let connection = connection_from_graph(&mut cx, &identity_graph()).expect("connection");
+    let mut request = eval_request(Expr::String("stream".to_owned()));
+    request.stream = true;
+    request.stream_buffer = Some(8);
+
+    let error = match connection.realize(&mut cx, request) {
+        Ok(_) => panic!("streaming replies should be rejected"),
+        Err(error) => error,
+    };
+
+    assert_eval_error_contains(error, "streaming replies");
+}
+
+#[test]
+fn topology_connection_rejects_deadline() {
+    let mut cx = runtime_cx();
+    let connection = connection_from_graph(&mut cx, &identity_graph()).expect("connection");
+    let mut request = eval_request(Expr::String("deadline".to_owned()));
+    request.deadline = Some(Duration::from_millis(1));
+
+    let error = match connection.realize(&mut cx, request) {
+        Ok(_) => panic!("deadline should be rejected"),
+        Err(error) => error,
+    };
+
+    assert_eval_error_contains(error, "deadline");
+}
+
 fn runtime_cx() -> Cx {
     let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
     cx.grant(eval_fabric_capability());
     cx.grant(topology_run_capability());
     cx
+}
+
+fn eval_request(expr: Expr) -> EvalRequest {
+    EvalRequest {
+        expr,
+        result_shape: None,
+        required_capabilities: Vec::new(),
+        deadline: None,
+        consistency: Consistency::LocalFirst,
+        mode: EvalMode::Eval,
+        answer_limit: None,
+        stream_buffer: None,
+        stream: false,
+        trace: false,
+    }
+}
+
+fn assert_eval_error_contains(error: Error, expected: &str) {
+    let Error::Eval(message) = error else {
+        panic!("unexpected error: {error}");
+    };
+    assert!(
+        message.contains(expected),
+        "expected {message:?} to contain {expected:?}"
+    );
 }
 
 fn identity_graph() -> Graph {

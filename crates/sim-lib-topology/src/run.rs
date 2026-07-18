@@ -5,9 +5,10 @@ use std::collections::VecDeque;
 use sim_kernel::{CapabilityName, Cx, Error, Expr, Result, Symbol};
 
 use crate::{
-    Budget, CompiledGraph, Edge, Graph,
+    Budget, BudgetExhausted, CompiledGraph, Edge, Graph, Node, Port,
     adapter::{call_target_expr, resolve_target},
     capability::topology_run_capability,
+    run_contract::check_expr_shape,
     verb::{VerbAction, run_core_node},
 };
 
@@ -264,6 +265,7 @@ pub struct TopologyRun<'a> {
 impl<'a> TopologyRun<'a> {
     /// Creates a run with one boundary input expression.
     pub fn new(graph: &'a Graph, plan: &'a CompiledGraph, input: Expr) -> Result<Self> {
+        validate_budget_policy(&graph.budget)?;
         let mut run = Self {
             graph,
             plan,
@@ -289,6 +291,8 @@ impl<'a> TopologyRun<'a> {
         while let Some(item) = self.queue.pop_front() {
             self.budget.record_step()?;
             self.budget.record_node_visit(item.node_index)?;
+            self.check_graph_input(cx, &item)?;
+            self.check_node_input(cx, &item)?;
             self.events.push(TopologyEvent::node(
                 TopologyEventKind::NodeStarted,
                 item.node_index,
@@ -306,6 +310,7 @@ impl<'a> TopologyRun<'a> {
             for action in actions {
                 match action {
                     VerbAction::Emit(packet) => {
+                        self.check_node_output(cx, &packet)?;
                         self.events.push(TopologyEvent::port(
                             TopologyEventKind::PortEmitted,
                             packet.node_index,
@@ -315,7 +320,7 @@ impl<'a> TopologyRun<'a> {
                         self.route_packet(cx, packet)?;
                     }
                     VerbAction::Complete { node_index, expr } => {
-                        self.push_output(node_index, expr)?
+                        self.push_output(cx, node_index, expr)?
                     }
                 }
             }
@@ -357,7 +362,8 @@ impl<'a> TopologyRun<'a> {
         self.queue.push_back(item);
     }
 
-    fn push_output(&mut self, node_index: usize, expr: Expr) -> Result<()> {
+    fn push_output(&mut self, cx: &mut Cx, node_index: usize, expr: Expr) -> Result<()> {
+        check_expr_shape(cx, "graph output", self.graph.output.as_ref(), &expr)?;
         self.budget.record_output()?;
         self.events.push(TopologyEvent::node_expr(
             TopologyEventKind::OutputEmitted,
@@ -381,6 +387,7 @@ impl<'a> TopologyRun<'a> {
             }
             self.budget.record_edge_visit(edge_index, edge.max_visits)?;
             let routed = route_edge_expr(cx, edge, packet.expr.clone())?;
+            self.check_edge_value(cx, compiled.to_node, &compiled.to.port, &routed)?;
             self.events.push(TopologyEvent::edge(
                 packet.node_index,
                 packet.port.clone(),
@@ -394,6 +401,81 @@ impl<'a> TopologyRun<'a> {
             });
         }
         Ok(())
+    }
+
+    fn check_graph_input(&self, cx: &mut Cx, item: &WorkItem) -> Result<()> {
+        if item.port == Symbol::new("in") && self.plan.input_nodes.contains(&item.node_index) {
+            check_expr_shape(cx, "graph input", self.graph.input.as_ref(), &item.expr)?;
+        }
+        Ok(())
+    }
+
+    fn check_node_input(&self, cx: &mut Cx, item: &WorkItem) -> Result<()> {
+        let node = self.node(item.node_index)?;
+        check_expr_shape(
+            cx,
+            format!("node {} input", node.id.as_symbol()),
+            node.input.as_ref(),
+            &item.expr,
+        )?;
+        if let Some(port) = input_port(node, &item.port) {
+            check_expr_shape(
+                cx,
+                format!("node {} input port {}", node.id.as_symbol(), port.name),
+                port.shape.as_ref(),
+                &item.expr,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn check_node_output(&self, cx: &mut Cx, packet: &TopologyPacket) -> Result<()> {
+        let node = self.node(packet.node_index)?;
+        check_expr_shape(
+            cx,
+            format!("node {} output", node.id.as_symbol()),
+            node.output.as_ref(),
+            &packet.expr,
+        )?;
+        if let Some(port) = output_port(node, &packet.port) {
+            check_expr_shape(
+                cx,
+                format!("node {} output port {}", node.id.as_symbol(), port.name),
+                port.shape.as_ref(),
+                &packet.expr,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn check_edge_value(
+        &self,
+        cx: &mut Cx,
+        node_index: usize,
+        port_name: &Symbol,
+        routed: &Expr,
+    ) -> Result<()> {
+        let node = self.node(node_index)?;
+        if let Some(port) = input_port(node, port_name) {
+            check_expr_shape(
+                cx,
+                format!(
+                    "edge into node {} input port {}",
+                    node.id.as_symbol(),
+                    port.name
+                ),
+                port.shape.as_ref(),
+                routed,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn node(&self, node_index: usize) -> Result<&'a Node> {
+        self.graph
+            .nodes
+            .get(node_index)
+            .ok_or_else(|| Error::Eval(format!("topology run: unknown node index {node_index}")))
     }
 }
 
@@ -429,4 +511,26 @@ fn route_edge_expr(cx: &mut Cx, edge: &crate::Edge, input: Expr) -> Result<Expr>
     } else {
         Ok(transformed)
     }
+}
+
+fn input_port<'a>(node: &'a Node, name: &Symbol) -> Option<&'a Port> {
+    node.inputs.iter().find(|port| port.name == *name)
+}
+
+fn output_port<'a>(node: &'a Node, name: &Symbol) -> Option<&'a Port> {
+    node.outputs.iter().find(|port| port.name == *name)
+}
+
+fn validate_budget_policy(budget: &Budget) -> Result<()> {
+    if budget.deadline_ms.is_some() {
+        return Err(Error::Eval(
+            "topology run: deadline_ms budget policy is unsupported".to_owned(),
+        ));
+    }
+    if budget.on_exhausted == BudgetExhausted::Partial {
+        return Err(Error::Eval(
+            "topology run: partial exhaustion policy is unsupported".to_owned(),
+        ));
+    }
+    Ok(())
 }

@@ -122,7 +122,7 @@
       "descriptor": "topology/Package",
       "file": "crates/sim-lib-topology/src/site.rs",
       "kind": "handle",
-      "line": 18,
+      "line": 19,
       "reason": "live topology eval-fabric handle; reconstruct from topology/Package descriptor data"
     }
   ],
@@ -529,10 +529,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-15T01:30:25+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "a09adf152e99da8636c444c869bf6f30889ec631",
+    "git_commit": "06e4c8d49556ea3324f37f7125d0e6a3558b6849",
     "repo": "sim-stream",
     "schema": "sim.provenance.v1",
-    "source_commit": "a09adf152e99da8636c444c869bf6f30889ec631",
+    "source_commit": "06e4c8d49556ea3324f37f7125d0e6a3558b6849",
     "source_remote": "https://github.com/sim-nest/sim-stream",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -545,9 +545,9 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "a6bbff49c4c16713",
+    "workspace_hash": "e43d4bf3730c0e19",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 231,
+    "workspace_hash_input_count": 232,
     "workspace_hash_inputs": [
       "Cargo.toml",
       "crates/sim-lib-rank/Cargo.toml",
@@ -752,6 +752,7 @@
       "crates/sim-lib-topology/src/replay.rs",
       "crates/sim-lib-topology/src/run.rs",
       "crates/sim-lib-topology/src/run_cells.rs",
+      "crates/sim-lib-topology/src/run_contract.rs",
       "crates/sim-lib-topology/src/run_nonlinear.rs",
       "crates/sim-lib-topology/src/run_predicate.rs",
       "crates/sim-lib-topology/src/site.rs",

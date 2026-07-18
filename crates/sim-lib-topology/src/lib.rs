@@ -60,6 +60,7 @@ pub mod registry;
 pub mod replay;
 pub mod run;
 mod run_cells;
+mod run_contract;
 mod run_nonlinear;
 mod run_predicate;
 pub mod site;
