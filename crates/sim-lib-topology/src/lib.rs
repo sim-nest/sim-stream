@@ -91,7 +91,7 @@ pub use model::{
     Budget, BudgetExhausted, Cell, Edge, EdgeId, Graph, GraphTest, Node, NodeId, Port, PortMode,
     PortRef, Scheduler, SchedulerMode,
 };
-pub use package::{TopologyPackage, load_package_file, parse_package};
+pub use package::{TopologyPackage, TopologyPackageSource, load_package_file, parse_package};
 pub use parse::{graph_from_value, parse_graph};
 pub use patch::{
     PatchOp, TopologyPatch, apply_topology_patch, apply_topology_patch_ops, patched_connection,
@@ -108,7 +108,7 @@ pub use reflect::{
 pub use registry::{
     SharedTopologyRegistry, TopologyEntry, TopologyLib, TopologyRegistry, install_topology_lib,
     manifest_name as topology_manifest_name, topology_def, topology_exports, topology_get,
-    topology_list, topology_load_file, topology_reload, topology_remove,
+    topology_list, topology_load_file, topology_load_source, topology_reload, topology_remove,
 };
 pub use replay::{TopologyCounterfactual, counterfactual_replay, replay_report};
 pub use site::{TopologyConnection, connection_from_graph};

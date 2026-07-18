@@ -4,7 +4,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use sim_kernel::{Expr, NumberLiteral, Symbol};
+use sim_kernel::{CapabilityName, Expr, NumberLiteral, Symbol};
 
 use crate::{load_package_file, parse_package};
 
@@ -28,6 +28,7 @@ smoke input="hello" expect="hello"
 capabilities:
 agent/run
 topology-extra
+vendor:read
 "#,
     )
     .expect("parsed package");
@@ -42,8 +43,9 @@ topology-extra
     assert_eq!(
         package.capabilities,
         vec![
-            Symbol::qualified("agent", "run"),
-            Symbol::new("topology-extra")
+            CapabilityName::new("agent/run"),
+            CapabilityName::new("topology-extra"),
+            CapabilityName::new("vendor:read")
         ]
     );
 }
@@ -96,6 +98,27 @@ value
             .to_string()
             .contains("unknown package section unknown")
     );
+}
+
+#[test]
+fn package_rejects_invalid_capability_name() {
+    let error = parse_package(
+        r#"
+graph:
+topology bad-capability
+node in verb=in
+node out verb=out
+wire in -> out
+
+capabilities:
+:bad
+"#,
+    )
+    .expect_err("invalid capability should fail");
+
+    let text = error.to_string();
+    assert!(text.contains("topology package parse error"));
+    assert!(text.contains("capability parse error"));
 }
 
 fn write_temp_package(label: &str, source: &str) -> PathBuf {

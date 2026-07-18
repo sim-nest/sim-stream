@@ -2,12 +2,12 @@
 
 use std::collections::VecDeque;
 
-use sim_kernel::{CapabilityName, Cx, Error, Expr, Result, Symbol};
+use sim_kernel::{Cx, Error, Expr, Result, Symbol};
 
 use crate::{
     Budget, BudgetExhausted, CompiledGraph, Edge, Graph, Node, Port,
     adapter::{call_target_expr, resolve_target},
-    capability::topology_run_capability,
+    capability::{require_graph_capabilities, topology_run_capability},
     run_contract::check_expr_shape,
     verb::{VerbAction, run_core_node},
 };
@@ -482,9 +482,7 @@ impl<'a> TopologyRun<'a> {
 /// Runs a compiled graph with one input expression.
 pub fn run_graph(cx: &mut Cx, graph: &Graph, plan: &CompiledGraph, input: Expr) -> Result<Expr> {
     cx.require(&topology_run_capability())?;
-    for capability in &graph.capabilities {
-        cx.require(&CapabilityName::new(capability.to_string()))?;
-    }
+    require_graph_capabilities(cx, graph)?;
     let mut run = TopologyRun::new(graph, plan, input)?;
     run.run(cx)?;
     Ok(run.output_expr())

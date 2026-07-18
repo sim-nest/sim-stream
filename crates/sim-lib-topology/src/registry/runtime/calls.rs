@@ -10,7 +10,7 @@ use crate::{
     cookbook::{embodied_intelligence_trace_demo, tiny_graph_demo},
     counterfactual_replay,
     diagram::{draw, from_diagram},
-    package::parse_package,
+    package::{TopologyPackageSource, parse_package},
     parse_graph,
     patch::patched_connection,
     replay_report,
@@ -23,7 +23,7 @@ use super::SharedTopologyRegistry;
 use super::reports::{compiled_graph_expr, counterfactual_from_expr, run_embedded_tests};
 use crate::registry::{
     TopologyRegistry, topology_def, topology_get, topology_list, topology_load_file,
-    topology_reload, topology_remove,
+    topology_load_source, topology_reload, topology_remove,
 };
 
 #[derive(Clone, Copy)]
@@ -44,6 +44,7 @@ enum TopologyFnKind {
     List,
     Remove,
     LoadFile,
+    LoadSource,
     Reload,
     Patch,
     Test,
@@ -95,8 +96,10 @@ impl ObjectCompat for TopologyFunction {
 
 impl Callable for TopologyFunction {
     fn call(&self, cx: &mut Cx, args: Args) -> Result<Value> {
-        if matches!(self.kind, TopologyFnKind::Patch) {
-            return self.call_patch_values(cx, args.values());
+        match self.kind {
+            TopologyFnKind::Patch => return self.call_patch_values(cx, args.values()),
+            TopologyFnKind::LoadSource => return self.call_load_source_values(cx, args.values()),
+            _ => {}
         }
         let exprs = args
             .values()
@@ -124,6 +127,7 @@ impl Callable for TopologyFunction {
             TopologyFnKind::List => self.call_list(cx, args.into_exprs()),
             TopologyFnKind::Remove => self.call_remove(cx, args.into_exprs()),
             TopologyFnKind::LoadFile => self.call_load_file(cx, args.into_exprs()),
+            TopologyFnKind::LoadSource => self.call_load_source_exprs(args.into_exprs()),
             TopologyFnKind::Reload => self.call_reload(cx, args.into_exprs()),
             TopologyFnKind::Patch => self.call_patch_exprs(cx, args.into_exprs()),
             TopologyFnKind::Test => self.call_test(cx, args.into_exprs()),
@@ -225,7 +229,7 @@ impl TopologyFunction {
         let name = symbol_arg(&args[0])?;
         let registry = lock_registry(&self.registry)?;
         match topology_get(&registry, &name) {
-            Some(entry) => graph_value(cx, &entry.graph),
+            Some(entry) => cx.factory().expr(topology_reflect_graph(cx, &entry.graph)),
             None => cx.factory().nil(),
         }
     }
@@ -256,6 +260,24 @@ impl TopologyFunction {
         let mut registry = lock_registry(&self.registry)?;
         let entry = topology_load_file(cx, &mut registry, path)?;
         graph_value(cx, &entry.graph)
+    }
+
+    fn call_load_source_values(&self, cx: &mut Cx, args: &[Value]) -> Result<Value> {
+        expect_value_len(&self.symbol, args, 2)?;
+        let key_expr = args[1].object().as_expr(cx)?;
+        let key = symbol_arg(&key_expr)?;
+        let source = TopologyPackageSource::table_entry(args[0].clone(), key);
+        let mut registry = lock_registry(&self.registry)?;
+        let entry = topology_load_source(cx, &mut registry, source)?;
+        graph_value(cx, &entry.graph)
+    }
+
+    fn call_load_source_exprs(&self, args: Vec<Expr>) -> Result<Value> {
+        expect_len(&self.symbol, &args, 2)?;
+        Err(Error::TypeMismatch {
+            expected: "evaluated table source value",
+            found: expr_type(&args[0]),
+        })
     }
 
     fn call_reload(&self, cx: &mut Cx, args: Vec<Expr>) -> Result<Value> {
@@ -337,6 +359,7 @@ fn function_specs() -> Vec<(Symbol, TopologyFnKind)> {
         ("list", TopologyFnKind::List),
         ("remove", TopologyFnKind::Remove),
         ("load-file", TopologyFnKind::LoadFile),
+        ("load-source", TopologyFnKind::LoadSource),
         ("reload", TopologyFnKind::Reload),
         ("patch", TopologyFnKind::Patch),
         ("test", TopologyFnKind::Test),

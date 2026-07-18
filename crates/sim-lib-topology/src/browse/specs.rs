@@ -90,7 +90,7 @@ pub fn topology_function_specs() -> Vec<TopologyFunctionSpec> {
         spec(
             "get",
             "fetch named topology graph data",
-            "Returns graph data for a registered topology or nil when absent.",
+            "Returns reflected graph data with private targets and cells redacted unless topology-reflect is present.",
             "name",
             "graph data or nil",
         ),
@@ -111,14 +111,21 @@ pub fn topology_function_specs() -> Vec<TopologyFunctionSpec> {
         spec(
             "load-file",
             "load a topology package",
-            "Loads a .simtopo package from disk into the topology registry.",
+            "Compatibility wrapper that loads a .simtopo package from a host file into the topology registry.",
             "path",
+            "graph data",
+        ),
+        spec(
+            "load-source",
+            "load a topology package from a table",
+            "Loads a .simtopo package from an evaluated Table or Dir entry into the topology registry.",
+            "table, key",
             "graph data",
         ),
         spec(
             "reload",
             "reload a topology package",
-            "Reloads a registered package from its source file.",
+            "Reloads a registered package from its stored source descriptor.",
             "name",
             "graph data",
         ),

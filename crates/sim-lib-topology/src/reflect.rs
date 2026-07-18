@@ -2,11 +2,13 @@
 
 use std::collections::VecDeque;
 
-use sim_kernel::{CapabilityName, Cx, Expr, Result, Symbol};
+use sim_kernel::{Cx, Expr, Result, Symbol};
 
 use crate::{
     CompiledGraph, Graph,
-    capability::{topology_reflect_capability, topology_run_capability},
+    capability::{
+        require_graph_capabilities, topology_reflect_capability, topology_run_capability,
+    },
     run::{TopologyEvent, TopologyEventKind, TopologyRun},
     text::graph_to_expr,
 };
@@ -212,9 +214,7 @@ pub fn topology_reflect(
     input: Expr,
 ) -> Result<TopologyRunReport> {
     cx.require(&topology_run_capability())?;
-    for capability in &graph.capabilities {
-        cx.require(&CapabilityName::new(capability.to_string()))?;
-    }
+    require_graph_capabilities(cx, graph)?;
     let input_for_report = input.clone();
     let mut run = TopologyRun::new(graph, plan, input)?;
     run.run(cx)?;

@@ -6,6 +6,7 @@ use sim_kernel::{Cx, Expr, Result, Symbol};
 use sim_shape::parse_shape_expr;
 
 use crate::{
+    capability::capability_name_from_symbol,
     error::validation_error,
     model::{Edge, EdgeId, Graph, Node, NodeId, Port, PortRef},
 };
@@ -109,18 +110,13 @@ fn check_positive(graph: &Graph, context: &str, value: u32) -> Result<()> {
 fn validate_capabilities(graph: &Graph) -> Result<()> {
     let mut seen = BTreeSet::new();
     for capability in &graph.capabilities {
-        if !valid_symbol(capability) {
+        let name = capability_name_from_symbol(capability)
+            .map_err(|err| validation_error(&graph.name, "capabilities", err.to_string()))?;
+        if !seen.insert(name.clone()) {
             return Err(validation_error(
                 &graph.name,
                 "capabilities",
-                format!("invalid capability symbol {capability}"),
-            ));
-        }
-        if !seen.insert(capability.clone()) {
-            return Err(validation_error(
-                &graph.name,
-                "capabilities",
-                format!("duplicate capability symbol {capability}"),
+                format!("duplicate capability name {name}"),
             ));
         }
     }
