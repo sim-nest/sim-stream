@@ -100,6 +100,7 @@ cargo doc --workspace --no-deps
 cargo clippy --workspace --all-features --all-targets -- -D warnings
 cargo test --workspace --all-features
 cargo run -p xtask -- simdoc --check
+cargo run -p xtask -- check-file-sizes
 ```
 
 ## Documentation Lanes

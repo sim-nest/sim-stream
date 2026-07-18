@@ -5,13 +5,19 @@
 //! codec is finite and exposes lexicographic and size-first exact orders over
 //! the same canonical coordinates.
 
-use std::collections::BTreeSet;
-
 use sim_kernel::{Expr, Symbol};
 
 use crate::{
     Nat, RankCodec, RankError, RankExactOrder, RankNode, RankResult, RankVersion,
     order::nat_to_index,
+};
+
+mod helpers;
+
+pub(crate) use helpers::{atom_exprs, push_expr_unique};
+use helpers::{
+    invalid_node, push_unique, string_alphabet_id, string_index, symbol_alphabet_id, symbol_index,
+    unique_strings, unique_symbols,
 };
 
 const TAG_NIL: u32 = 0;
@@ -339,13 +345,6 @@ fn expr_tuples(items: &[Expr], len: usize) -> Vec<Vec<Expr>> {
     out
 }
 
-pub(crate) fn atom_exprs(spec: &RankExprSpec) -> Vec<Expr> {
-    let mut exprs = vec![Expr::Nil, Expr::Bool(false), Expr::Bool(true)];
-    exprs.extend(spec.symbols.iter().cloned().map(Expr::Symbol));
-    exprs.extend(spec.strings.iter().cloned().map(Expr::String));
-    exprs
-}
-
 fn expr_to_node_unchecked(spec: &RankExprSpec, expr: &Expr) -> RankResult<RankNode> {
     Ok(match expr {
         Expr::Nil => RankNode::sum(TAG_NIL, RankNode::Unit),
@@ -448,85 +447,5 @@ fn expr_from_node_unchecked(spec: &RankExprSpec, node: &RankNode) -> RankResult<
             expected: "rank expression",
             found: found.kind_name(),
         }),
-    }
-}
-
-fn unique_symbols(items: impl IntoIterator<Item = Symbol>) -> RankResult<Vec<Symbol>> {
-    let mut seen = BTreeSet::new();
-    let mut out = Vec::new();
-    for item in items {
-        if !seen.insert(item.clone()) {
-            return Err(invalid_node(format!(
-                "duplicate rank expression symbol {item}"
-            )));
-        }
-        out.push(item);
-    }
-    Ok(out)
-}
-
-fn unique_strings(items: impl IntoIterator<Item = String>) -> RankResult<Vec<String>> {
-    let mut seen = BTreeSet::new();
-    let mut out = Vec::new();
-    for item in items {
-        if !seen.insert(item.clone()) {
-            return Err(invalid_node(format!(
-                "duplicate rank expression string {item:?}"
-            )));
-        }
-        out.push(item);
-    }
-    Ok(out)
-}
-
-fn push_unique(out: &mut Vec<Expr>, expr: Expr) -> RankResult<()> {
-    push_expr_unique(out, expr);
-    if out.len() > MAX_GENERATED_EXPRS {
-        return Err(invalid_node(
-            "restricted rank expression space exceeds generation bound",
-        ));
-    }
-    Ok(())
-}
-
-pub(crate) fn push_expr_unique(out: &mut Vec<Expr>, expr: Expr) {
-    if !out.contains(&expr) {
-        out.push(expr);
-    }
-}
-
-fn symbol_index(spec: &RankExprSpec, symbol: &Symbol) -> RankResult<usize> {
-    spec.symbols
-        .iter()
-        .position(|candidate| candidate == symbol)
-        .ok_or_else(|| {
-            invalid_node(format!(
-                "symbol {symbol} is outside the expression alphabet"
-            ))
-        })
-}
-
-fn string_index(spec: &RankExprSpec, value: &str) -> RankResult<usize> {
-    spec.strings
-        .iter()
-        .position(|candidate| candidate == value)
-        .ok_or_else(|| {
-            invalid_node(format!(
-                "string {value:?} is outside the expression alphabet"
-            ))
-        })
-}
-
-fn symbol_alphabet_id() -> Symbol {
-    Symbol::qualified("rank-expr", "symbol")
-}
-
-fn string_alphabet_id() -> Symbol {
-    Symbol::qualified("rank-expr", "string")
-}
-
-fn invalid_node(message: impl Into<String>) -> RankError {
-    RankError::InvalidNode {
-        message: message.into(),
     }
 }

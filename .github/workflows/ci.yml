@@ -19,3 +19,4 @@ jobs:
       - run: cargo clippy --workspace --all-features --all-targets -- -D warnings
       - run: cargo test --workspace --all-features
       - run: cargo run -p xtask -- simdoc --check
+      - run: cargo run -p xtask -- check-file-sizes

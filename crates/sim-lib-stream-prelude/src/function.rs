@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 mod helpers;
+mod symbols;
 
 use sim_kernel::{
     AbiVersion, Args, Callable, ClassRef, Cx, Error, Export, Expr, Lib, LibManifest, LibTarget,
@@ -28,6 +29,17 @@ use crate::{
 };
 
 use helpers::{data_expr, eval_value, handle_arg, run_report_value, symbol_arg, usize_arg};
+use symbols::{
+    stream_advance_catalog_time_symbol, stream_cancel_older_than_symbol, stream_cell_set_symbol,
+    stream_cell_symbol, stream_cell_value_symbol, stream_describe_symbol,
+    stream_explain_diagnostic_symbol, stream_filter_kind_symbol, stream_filter_shape_symbol,
+    stream_graph_lisp_symbol, stream_identity_symbol, stream_list_symbol, stream_map_expr_symbol,
+    stream_reroute_symbol, stream_window_symbol,
+};
+pub use symbols::{
+    stream_card_symbol, stream_memory_specs_symbol, stream_open_symbol, stream_pipe_symbol,
+    stream_sink_packets_symbol, stream_write_symbol,
+};
 
 const STREAM_PRELUDE_LIB_ID: &str = "stream-prelude";
 
@@ -104,118 +116,6 @@ pub fn stream_prelude_exports() -> Vec<Export> {
 /// Returns the manifest id symbol of the prelude library (`stream-prelude`).
 pub fn manifest_name() -> Symbol {
     Symbol::new(STREAM_PRELUDE_LIB_ID)
-}
-
-/// Returns the `stream/open` function symbol.
-///
-/// `stream/open` builds a memory stream handle from a memory-spec table.
-///
-/// # Examples
-///
-/// ```
-/// use sim_lib_stream_prelude::stream_open_symbol;
-///
-/// assert_eq!(stream_open_symbol().as_qualified_str(), "stream/open");
-/// ```
-pub fn stream_open_symbol() -> Symbol {
-    Symbol::qualified("stream", "open")
-}
-
-/// Returns the `stream/write!` function symbol.
-///
-/// `stream/write!` pushes a single packet into a sink handle.
-pub fn stream_write_symbol() -> Symbol {
-    Symbol::qualified("stream", "write!")
-}
-
-/// Returns the `stream/pipe` function symbol.
-///
-/// `stream/pipe` connects a source handle to optional stages and at most one
-/// sink, producing a pipeline handle.
-pub fn stream_pipe_symbol() -> Symbol {
-    Symbol::qualified("stream", "pipe")
-}
-
-/// Returns the `stream/card` function symbol.
-///
-/// `stream/card` renders a browseable Card for a stream handle.
-pub fn stream_card_symbol() -> Symbol {
-    Symbol::qualified("stream", "card")
-}
-
-/// Returns the `stream/sink-packets` function symbol.
-///
-/// `stream/sink-packets` reads back the packets accumulated by a sink handle.
-pub fn stream_sink_packets_symbol() -> Symbol {
-    Symbol::qualified("stream", "sink-packets")
-}
-
-/// Returns the `stream/memory-specs` value symbol.
-///
-/// `stream/memory-specs` names the catalog value describing every supported
-/// memory source/sink spec and its required fields.
-pub fn stream_memory_specs_symbol() -> Symbol {
-    Symbol::qualified("stream", "memory-specs")
-}
-
-fn stream_identity_symbol() -> Symbol {
-    Symbol::qualified("stream", "identity")
-}
-
-fn stream_list_symbol() -> Symbol {
-    Symbol::qualified("stream", "list")
-}
-
-fn stream_describe_symbol() -> Symbol {
-    Symbol::qualified("stream", "describe")
-}
-
-fn stream_graph_lisp_symbol() -> Symbol {
-    Symbol::qualified("stream", "graph-lisp")
-}
-
-fn stream_explain_diagnostic_symbol() -> Symbol {
-    Symbol::qualified("stream", "explain-diagnostic")
-}
-
-fn stream_cell_symbol() -> Symbol {
-    Symbol::qualified("stream", "cell")
-}
-
-fn stream_cell_value_symbol() -> Symbol {
-    Symbol::qualified("stream", "cell-value")
-}
-
-fn stream_cell_set_symbol() -> Symbol {
-    Symbol::qualified("stream", "cell-set!")
-}
-
-fn stream_reroute_symbol() -> Symbol {
-    Symbol::qualified("stream", "reroute!")
-}
-
-fn stream_advance_catalog_time_symbol() -> Symbol {
-    Symbol::qualified("stream", "advance-catalog-time!")
-}
-
-fn stream_cancel_older_than_symbol() -> Symbol {
-    Symbol::qualified("stream", "cancel-older-than!")
-}
-
-fn stream_filter_kind_symbol() -> Symbol {
-    Symbol::qualified("stream", "filter-kind")
-}
-
-fn stream_filter_shape_symbol() -> Symbol {
-    Symbol::qualified("stream", "filter-shape")
-}
-
-fn stream_map_expr_symbol() -> Symbol {
-    Symbol::qualified("stream", "map-expr")
-}
-
-fn stream_window_symbol() -> Symbol {
-    Symbol::qualified("stream", "window")
 }
 
 fn function_table() -> Vec<(Symbol, StreamFn)> {

@@ -15,11 +15,13 @@ use sim_value::access;
 mod redaction;
 #[path = "cassette/stats.rs"]
 mod stats;
+#[path = "cassette/timing.rs"]
+mod timing;
 
 use crate::buffer::{expr_kind, field, string_field, symbol_field};
 use crate::{
-    StreamCapability, StreamEnvelope, StreamItem, StreamMetadata, StreamPacket, StreamStats,
-    StreamValue, TransportProfile,
+    StreamCapability, StreamEnvelope, StreamItem, StreamMetadata, StreamStats, StreamValue,
+    TransportProfile,
 };
 
 use redaction::{
@@ -27,6 +29,7 @@ use redaction::{
     packet_has_private_payload, redact_envelope, redact_metadata, redact_symbol,
 };
 use stats::{stream_stats_expr, stream_stats_from_expr};
+use timing::{diagnostics_from_envelopes, timing_from_envelopes};
 
 /// Repository-relative root directory under which golden stream fixtures live.
 pub const STREAM_CASSETTE_FIXTURE_ROOT: &str = "fixtures/streams/golden";
@@ -356,62 +359,6 @@ impl StreamCassette {
     }
 }
 
-impl StreamCassetteTiming {
-    /// Serializes the timing summary to an [`Expr`] map keyed by field symbol.
-    pub fn to_expr(&self) -> Expr {
-        Expr::Map(vec![
-            (
-                Expr::Symbol(Symbol::new("clock")),
-                Expr::Symbol(self.clock.clone()),
-            ),
-            (
-                Expr::Symbol(Symbol::new("packet-count")),
-                Expr::String(self.packet_count.to_string()),
-            ),
-            (
-                Expr::Symbol(Symbol::new("first-sequence")),
-                optional_u64_expr(self.first_sequence),
-            ),
-            (
-                Expr::Symbol(Symbol::new("last-sequence")),
-                optional_u64_expr(self.last_sequence),
-            ),
-            (Expr::Symbol(Symbol::new("finite")), Expr::Bool(self.finite)),
-        ])
-    }
-
-    /// Deserializes a timing summary from an [`Expr`] map produced by
-    /// [`to_expr`](StreamCassetteTiming::to_expr).
-    ///
-    /// Validates the field set and fails closed on missing or unexpected
-    /// fields or type mismatches.
-    pub fn from_expr(expr: &Expr) -> Result<Self> {
-        let Expr::Map(entries) = expr else {
-            return Err(Error::TypeMismatch {
-                expected: "stream cassette timing map",
-                found: expr_kind(expr),
-            });
-        };
-        ensure_fields(
-            entries,
-            &[
-                "clock",
-                "packet-count",
-                "first-sequence",
-                "last-sequence",
-                "finite",
-            ],
-        )?;
-        Ok(Self {
-            clock: symbol_field(entries, "clock")?.clone(),
-            packet_count: parse_usize(entries, "packet-count")?,
-            first_sequence: optional_u64(field(entries, "first-sequence")?)?,
-            last_sequence: optional_u64(field(entries, "last-sequence")?)?,
-            finite: bool_field(entries, "finite")?,
-        })
-    }
-}
-
 /// Returns the format symbol stamped into every serialized cassette.
 pub fn stream_cassette_format_symbol() -> Symbol {
     Symbol::qualified("stream/cassette", "v1")
@@ -425,19 +372,6 @@ pub fn stream_cassette_golden_root() -> &'static str {
 /// Returns the file extension (without leading dot) for golden fixtures.
 pub fn stream_cassette_golden_extension() -> &'static str {
     STREAM_CASSETTE_EXTENSION
-}
-
-fn timing_from_envelopes(
-    metadata: &StreamMetadata,
-    envelopes: &[StreamEnvelope],
-) -> StreamCassetteTiming {
-    StreamCassetteTiming {
-        clock: metadata.clock().clone(),
-        packet_count: envelopes.len(),
-        first_sequence: envelopes.first().map(StreamEnvelope::sequence),
-        last_sequence: envelopes.last().map(StreamEnvelope::sequence),
-        finite: true,
-    }
 }
 
 fn restore_metadata_id(metadata: StreamMetadata, envelopes: &[StreamEnvelope]) -> StreamMetadata {
@@ -454,25 +388,6 @@ fn restore_metadata_id(metadata: StreamMetadata, envelopes: &[StreamEnvelope]) -
         metadata.clock().clone(),
         metadata.buffer().clone(),
     )
-}
-
-fn diagnostics_from_envelopes(envelopes: &[StreamEnvelope]) -> Vec<Symbol> {
-    let mut diagnostics = Vec::new();
-    for envelope in envelopes {
-        for diagnostic in envelope.diagnostics() {
-            push_unique(&mut diagnostics, diagnostic.clone());
-        }
-        if let StreamPacket::Diagnostic(packet) = envelope.packet() {
-            push_unique(&mut diagnostics, packet.kind().clone());
-        }
-    }
-    diagnostics
-}
-
-fn push_unique(symbols: &mut Vec<Symbol>, symbol: Symbol) {
-    if !symbols.contains(&symbol) {
-        symbols.push(symbol);
-    }
 }
 
 fn validate_fixture_path(path: &str) -> Result<()> {
