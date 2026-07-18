@@ -3,10 +3,10 @@
   "generated_by": "cargo run -p xtask -- simdoc",
   "generation_timestamp": "2026-07-15T01:30:25+02:00",
   "generator": "xtask repo-contract v1",
-  "git_commit": "bb76e5205111047c5e7122a310591e7ffbe74eb8",
+  "git_commit": "02c69e8ce5e90ac6e01dc781212a3d2ff71bfd43",
   "repo": "sim-stream",
   "schema": "sim.provenance.v1",
-  "source_commit": "bb76e5205111047c5e7122a310591e7ffbe74eb8",
+  "source_commit": "02c69e8ce5e90ac6e01dc781212a3d2ff71bfd43",
   "source_remote": "https://github.com/sim-nest/sim-stream",
   "validation_commands": [
     "cargo fmt --all --check",
@@ -19,9 +19,9 @@
     "cargo run -p xtask -- validation-matrix --check --repo .",
     "cargo run -p xtask -- crate-catalog --check --repo ."
   ],
-  "workspace_hash": "25258e9990d23556",
+  "workspace_hash": "b8355eb77ca2bea4",
   "workspace_hash_algorithm": "fnv1a64",
-  "workspace_hash_input_count": 237,
+  "workspace_hash_input_count": 238,
   "workspace_hash_inputs": [
     "Cargo.toml",
     "crates/sim-lib-rank/Cargo.toml",
@@ -171,6 +171,7 @@
     "crates/sim-lib-stream-core/src/spine/queue.rs",
     "crates/sim-lib-stream-core/src/spine.rs",
     "crates/sim-lib-stream-core/src/tests/codec.rs",
+    "crates/sim-lib-stream-core/src/tests/envelope.rs",
     "crates/sim-lib-stream-core/src/tests/live_completion.rs",
     "crates/sim-lib-stream-core/src/tests/profile.rs",
     "crates/sim-lib-stream-core/src/tests.rs",
