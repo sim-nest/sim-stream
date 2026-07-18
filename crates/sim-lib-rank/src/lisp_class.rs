@@ -7,14 +7,18 @@ use std::sync::Arc;
 
 use sim_kernel::{
     Args, CORE_CLASS_CLASS_ID, CORE_FUNCTION_CLASS_ID, Callable, Class, ClassId, ClassRef, Cx,
-    DefaultFactory, Error, Factory, Object, ObjectCompat, ReadConstructor, ReadConstructorRef,
-    Result, ShapeRef, Symbol, TableRef, Value,
+    DefaultFactory, Error, Expr, Factory, MatchScore, Object, ObjectCompat, ReadConstructor,
+    ReadConstructorRef, Result, Shape, ShapeDoc, ShapeMatch, ShapeRef, Symbol, TableRef, Value,
 };
 
 use crate::{
+    Nat,
     nat::intern_ordinal,
     read_construct::{nat_from_value, rank_node_from_expr, symbol_from_value, value_exprs},
-    space::{rank_coordinate_value, rank_node_value},
+    space::{
+        RankSpace, coordinate_from_value, rank_coordinate_value, rank_node_from_value,
+        rank_node_value,
+    },
 };
 
 const RANK_SPACE_CLASS_ID: ClassId = ClassId(6300);
@@ -95,11 +99,11 @@ impl Class for RankClass {
     }
 
     fn constructor_shape(&self, cx: &mut Cx) -> Result<ShapeRef> {
-        cx.factory().nil()
+        shape_ref(cx, RankArgsShape { kind: self.kind })
     }
 
     fn instance_shape(&self, cx: &mut Cx) -> Result<ShapeRef> {
-        cx.factory().nil()
+        shape_ref(cx, RankValueShape { kind: self.kind })
     }
 
     fn read_constructor(&self, _cx: &mut Cx) -> Result<Option<ReadConstructorRef>> {
@@ -148,7 +152,7 @@ impl ReadConstructor for RankReadConstructor {
     }
 
     fn args_shape(&self, cx: &mut Cx) -> Result<ShapeRef> {
-        cx.factory().nil()
+        shape_ref(cx, RankArgsShape { kind: self.kind })
     }
 
     fn construct_read(&self, cx: &mut Cx, args: Vec<Value>) -> Result<Value> {
@@ -222,4 +226,193 @@ fn construct_rank_value(cx: &mut Cx, kind: RankClassKind, args: Vec<Value>) -> R
 
 fn arity_error(function: &'static str, expected: &'static str) -> Error {
     Error::Eval(format!("{function} expects {expected}"))
+}
+
+fn shape_ref(cx: &mut Cx, shape: impl Shape + 'static) -> Result<ShapeRef> {
+    cx.factory().opaque(Arc::new(shape))
+}
+
+#[derive(Clone)]
+struct RankValueShape {
+    kind: RankClassKind,
+}
+
+impl Shape for RankValueShape {
+    fn symbol(&self) -> Option<Symbol> {
+        Some(Symbol::qualified("rank-shape", self.kind.shape_name()))
+    }
+
+    fn check_value(&self, _cx: &mut Cx, value: Value) -> Result<ShapeMatch> {
+        if self.kind.value_matches(&value) {
+            Ok(ShapeMatch::accept(MatchScore::exact(30)))
+        } else {
+            Ok(ShapeMatch::reject(format!(
+                "{} instance shape expects {}",
+                self.kind.symbol(),
+                self.kind.value_label()
+            )))
+        }
+    }
+
+    fn check_expr(&self, _cx: &mut Cx, expr: &Expr) -> Result<ShapeMatch> {
+        if self.kind.instance_expr_matches(expr) {
+            Ok(ShapeMatch::accept(MatchScore::exact(25)))
+        } else {
+            Ok(ShapeMatch::reject(format!(
+                "{} instance expression shape expects {}",
+                self.kind.symbol(),
+                self.kind.value_label()
+            )))
+        }
+    }
+
+    fn describe(&self, _cx: &mut Cx) -> Result<ShapeDoc> {
+        Ok(ShapeDoc::new(format!("{} instance", self.kind.symbol()))
+            .with_detail(self.kind.value_label()))
+    }
+}
+
+#[derive(Clone)]
+struct RankArgsShape {
+    kind: RankClassKind,
+}
+
+impl Shape for RankArgsShape {
+    fn symbol(&self) -> Option<Symbol> {
+        Some(Symbol::qualified(
+            "rank-shape",
+            format!("{}-args", self.kind.shape_name()),
+        ))
+    }
+
+    fn check_value(&self, cx: &mut Cx, value: Value) -> Result<ShapeMatch> {
+        let expr = value.object().as_expr(cx)?;
+        self.check_expr(cx, &expr)
+    }
+
+    fn check_expr(&self, _cx: &mut Cx, expr: &Expr) -> Result<ShapeMatch> {
+        if self.kind.args_expr_matches(expr) {
+            Ok(ShapeMatch::accept(MatchScore::exact(30)))
+        } else {
+            Ok(ShapeMatch::reject(format!(
+                "{} constructor shape expects {}",
+                self.kind.symbol(),
+                self.kind.args_label()
+            )))
+        }
+    }
+
+    fn describe(&self, _cx: &mut Cx) -> Result<ShapeDoc> {
+        Ok(
+            ShapeDoc::new(format!("{} constructor args", self.kind.symbol()))
+                .with_detail(self.kind.args_label()),
+        )
+    }
+}
+
+impl RankClassKind {
+    fn shape_name(self) -> &'static str {
+        match self {
+            Self::Space => "rank-space",
+            Self::Node => "rank-node",
+            Self::Coordinate => "rank-coordinate",
+        }
+    }
+
+    fn value_label(self) -> &'static str {
+        match self {
+            Self::Space => "a rank space value",
+            Self::Node => "a rank node value",
+            Self::Coordinate => "a rank coordinate value",
+        }
+    }
+
+    fn args_label(self) -> &'static str {
+        match self {
+            Self::Space => "one rank space symbol",
+            Self::Node => "one rank node expression",
+            Self::Coordinate => "one rank space symbol and one natural ordinal",
+        }
+    }
+
+    fn value_matches(self, value: &Value) -> bool {
+        match self {
+            Self::Space => value.object().downcast_ref::<RankSpace>().is_some(),
+            Self::Node => rank_node_from_value(value).is_ok(),
+            Self::Coordinate => coordinate_from_value(value).is_ok(),
+        }
+    }
+
+    fn instance_expr_matches(self, expr: &Expr) -> bool {
+        match self {
+            Self::Space => matches!(expr, Expr::Symbol(_)),
+            Self::Node => rank_node_instance_expr_matches(expr),
+            Self::Coordinate => coordinate_instance_expr_matches(expr),
+        }
+    }
+
+    fn args_expr_matches(self, expr: &Expr) -> bool {
+        let Some(args) = constructor_arg_exprs(self, expr) else {
+            return false;
+        };
+        match self {
+            Self::Space => matches!(args, [Expr::Symbol(_)]),
+            Self::Node => {
+                let [node] = args else {
+                    return false;
+                };
+                rank_node_from_expr(node.clone()).is_ok()
+            }
+            Self::Coordinate => {
+                let [Expr::Symbol(_), ordinal] = args else {
+                    return false;
+                };
+                nat_expr_matches(ordinal)
+            }
+        }
+    }
+}
+
+fn constructor_arg_exprs(kind: RankClassKind, expr: &Expr) -> Option<&[Expr]> {
+    match expr {
+        Expr::List(args) | Expr::Vector(args) => Some(args),
+        Expr::Call { operator, args } if matches_class_operator(operator, kind.symbol()) => {
+            Some(args)
+        }
+        _ => None,
+    }
+}
+
+fn rank_node_instance_expr_matches(expr: &Expr) -> bool {
+    if rank_node_from_expr(expr.clone()).is_ok() {
+        return true;
+    }
+    let Expr::Call { operator, args } = expr else {
+        return false;
+    };
+    let [node] = args.as_slice() else {
+        return false;
+    };
+    matches_class_operator(operator, rank_node_class_symbol())
+        && rank_node_from_expr(node.clone()).is_ok()
+}
+
+fn coordinate_instance_expr_matches(expr: &Expr) -> bool {
+    let Expr::Call { operator, args } = expr else {
+        return false;
+    };
+    matches_class_operator(operator, rank_coordinate_class_symbol())
+        && matches!(args.as_slice(), [Expr::Symbol(_), ordinal] if nat_expr_matches(ordinal))
+}
+
+fn matches_class_operator(operator: &Expr, symbol: Symbol) -> bool {
+    matches!(operator, Expr::Symbol(found) if found == &symbol)
+}
+
+fn nat_expr_matches(expr: &Expr) -> bool {
+    match expr {
+        Expr::Number(number) => Nat::from_number_literal(number).is_ok(),
+        Expr::String(value) => value.parse::<Nat>().is_ok(),
+        _ => false,
+    }
 }

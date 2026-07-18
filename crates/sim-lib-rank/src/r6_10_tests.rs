@@ -4,11 +4,11 @@ use sim_kernel::{
 };
 
 use crate::{
-    RankBuilder, RankNode, RankSpace, RankSpaceCardMetadata, coordinate_from_value,
+    RankBuilder, RankLimits, RankNode, RankSpace, RankSpaceCardMetadata, coordinate_from_value,
     default_order_for_context, install_rank_lib, install_rank_space, rank_coordinate_class_symbol,
-    rank_enumerate_capability, rank_enumerate_symbol, rank_fn_symbol, rank_mutate_symbol,
-    rank_neighbor_capability, rank_node_class_symbol, rank_node_from_value, rank_node_value,
-    rank_read_capability, rank_space_card, unrank_fn_symbol,
+    rank_enumerate_capability, rank_enumerate_symbol, rank_fn_symbol, rank_heavy_capability,
+    rank_mutate_symbol, rank_neighbor_capability, rank_node_class_symbol, rank_node_from_value,
+    rank_node_value, rank_read_capability, rank_space_card, unrank_fn_symbol,
 };
 
 use sim_kernel::testing::eager_cx as cx;
@@ -21,6 +21,13 @@ fn bool_pair_space() -> RankSpace {
             .field(Symbol::new("right"), RankBuilder::bool())
             .build()
             .unwrap(),
+    )
+}
+
+fn nat_space() -> RankSpace {
+    RankSpace::group(
+        Symbol::qualified("rank-test", "nat-space"),
+        RankBuilder::nat(),
     )
 }
 
@@ -162,6 +169,106 @@ fn denied_capabilities_fail_closed() {
         sim_kernel::Error::CapabilityDenied { capability }
             if capability == rank_neighbor_capability()
     ));
+}
+
+#[test]
+fn rank_enumerate_large_limits_require_bounded_heavy_authority() {
+    let mut cx = cx();
+    cx.grant(rank_enumerate_capability());
+    let space = nat_space();
+    let space_symbol = space.symbol().clone();
+    install_rank_space(&mut cx, space, RankSpaceCardMetadata::default(), None).unwrap();
+
+    let ordinary_limit = u64::try_from(RankLimits::ORDINARY_ENUMERATION_LIMIT + 1).unwrap();
+    let denied = cx
+        .eval_expr(call(
+            rank_enumerate_symbol(),
+            vec![Expr::Symbol(space_symbol.clone()), number(ordinary_limit)],
+        ))
+        .unwrap_err();
+    assert!(matches!(
+        denied,
+        sim_kernel::Error::CapabilityDenied { capability }
+            if capability == rank_heavy_capability()
+    ));
+
+    cx.grant(rank_heavy_capability());
+    let enumerated = cx
+        .eval_expr(call(
+            rank_enumerate_symbol(),
+            vec![Expr::Symbol(space_symbol.clone()), number(ordinary_limit)],
+        ))
+        .unwrap();
+    let items = force_list_to_vec(
+        &mut cx,
+        enumerated.object().as_list().unwrap(),
+        "heavy rank/enumerate test",
+    )
+    .unwrap();
+    assert_eq!(items.len(), usize::try_from(ordinary_limit).unwrap());
+
+    let heavy_limit = u64::try_from(RankLimits::HEAVY_ENUMERATION_LIMIT + 1).unwrap();
+    let denied = cx
+        .eval_expr(call(
+            rank_enumerate_symbol(),
+            vec![Expr::Symbol(space_symbol), number(heavy_limit)],
+        ))
+        .unwrap_err();
+    assert!(
+        denied
+            .to_string()
+            .contains("rank limit rank.enumerate.limit exceeded")
+    );
+}
+
+#[test]
+fn rank_classes_and_read_constructors_expose_real_shapes() {
+    let mut cx = cx();
+    install_rank_lib(&mut cx).unwrap();
+    let class_value = cx
+        .registry()
+        .class_by_symbol(&rank_node_class_symbol())
+        .unwrap()
+        .clone();
+    let class = class_value.object().as_class().unwrap();
+
+    let instance_shape = class.instance_shape(&mut cx).unwrap();
+    let instance_shape = instance_shape.object().as_shape().unwrap();
+    let node = RankNode::Product(vec![RankNode::Bool(true), RankNode::Bool(false)]);
+    let node_value = rank_node_value(&mut cx, node.clone()).unwrap();
+    assert!(
+        instance_shape
+            .check_value(&mut cx, node_value)
+            .unwrap()
+            .accepted
+    );
+
+    let args_expr = Expr::List(crate::lisp::rank_node_constructor_args(&node));
+    let constructor_shape = class.constructor_shape(&mut cx).unwrap();
+    let constructor_shape = constructor_shape.object().as_shape().unwrap();
+    assert!(
+        constructor_shape
+            .check_expr(&mut cx, &args_expr)
+            .unwrap()
+            .accepted
+    );
+
+    let read_constructor = class.read_constructor(&mut cx).unwrap().unwrap();
+    let read_constructor_shape = read_constructor
+        .object()
+        .as_read_constructor()
+        .unwrap()
+        .args_shape(&mut cx)
+        .unwrap();
+    assert!(
+        read_constructor_shape
+            .object()
+            .as_shape()
+            .unwrap()
+            .check_expr(&mut cx, &args_expr)
+            .unwrap()
+            .accepted
+    );
 }
 
 #[test]

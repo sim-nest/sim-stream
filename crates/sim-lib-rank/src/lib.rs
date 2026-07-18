@@ -48,6 +48,7 @@ pub mod retrieve;
 #[cfg(feature = "rank-scatter")]
 pub mod scatter;
 pub mod search;
+pub mod shape;
 pub mod space;
 pub mod tree;
 mod tree_collection;
@@ -116,12 +117,14 @@ pub use order_score::{
 };
 pub use registry::RankSpaceRegistry;
 pub use retrieve::{
-    EmbeddingStore, RetrievedNeighbor, retrieve, retrieve_ids, retrieve_rank_neighborhood,
+    EmbeddingIndex, EmbeddingStore, RetrievedNeighbor, retrieve, retrieve_ids,
+    retrieve_ids_limited, retrieve_limited, retrieve_rank_neighborhood,
 };
 pub use search::{
     RankBeamSearchResult, RankSearchResult, RankSearchScore, RankSearchState, beam_search,
     hill_climb,
 };
+pub use shape::RankNodeShape;
 pub use space::{
     RankCoordinateValue, RankNodeValue, RankSpace, coordinate_from_value, rank_coordinate_value,
     rank_node_from_value, rank_node_value,

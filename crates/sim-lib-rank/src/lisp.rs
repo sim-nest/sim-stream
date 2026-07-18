@@ -13,9 +13,12 @@ use sim_kernel::{
 };
 
 use crate::{
-    GenericNodeNeighborhood, Nat, RankGrammar, RankNeighborhood, RankNode, RankSpace,
+    GenericNodeNeighborhood, Nat, RankGrammar, RankLimits, RankNeighborhood, RankNode, RankSpace,
     RankSpaceCardMetadata,
-    cap::{rank_enumerate_capability, rank_neighbor_capability, rank_read_capability},
+    cap::{
+        rank_enumerate_capability, rank_heavy_capability, rank_neighbor_capability,
+        rank_read_capability,
+    },
     claims::publish_space_card_claims,
     cookbook_runtime::{install_rank_cookbook_functions, rank_cookbook_exports},
     lisp_class::{RankClass, RankClassKind, class_value_or_stub},
@@ -334,12 +337,21 @@ fn call_enumerate(cx: &mut Cx, args: Vec<Value>) -> Result<Value> {
     };
     let space = space_from_value(cx, space_arg)?;
     let limit = enumerate_limit(cx, &args[1..])?;
-    let mut values = Vec::with_capacity(limit);
+    let mut limits = RankLimits::default();
+    authorize_enumeration_limit(cx, limit, &mut limits)?;
+    let mut values = Vec::new();
+    values
+        .try_reserve(limit)
+        .map_err(|_| Error::Eval("rank/enumerate limit exceeds allocation budget".to_owned()))?;
     for index in 0..limit {
+        limits.consume(1, "rank.enumerate").map_err(Error::from)?;
         let ordinal = Nat::from(index);
         if !space.codec().r_ok(&ordinal) {
             break;
         }
+        limits
+            .check_nat(&ordinal, "rank.enumerate")
+            .map_err(Error::from)?;
         values.push(rank_node_value(
             cx,
             space.codec().unrank_node(&ordinal).map_err(Error::from)?,
@@ -417,6 +429,15 @@ fn enumerate_limit(cx: &mut Cx, args: &[Value]) -> Result<usize> {
         index += 1;
     }
     limit.ok_or_else(|| Error::Eval("rank/enumerate requires :limit".to_owned()))
+}
+
+fn authorize_enumeration_limit(cx: &mut Cx, limit: usize, limits: &mut RankLimits) -> Result<()> {
+    if limit > RankLimits::ORDINARY_ENUMERATION_LIMIT {
+        cx.require(&rank_heavy_capability())?;
+    }
+    limits
+        .check_count(limit, "rank.enumerate.limit")
+        .map_err(Error::from)
 }
 
 fn seed_arg(cx: &mut Cx, args: &[Value]) -> Result<u64> {

@@ -1,8 +1,8 @@
 use sim_kernel::Symbol;
 
 use crate::{
-    EmbeddingStore, GenericNodeNeighborhood, RankBuilder, RankCodec, RankError, RankLimits,
-    RankNeighborhood, RankNode, retrieve, retrieve_rank_neighborhood,
+    EmbeddingIndex, EmbeddingStore, GenericNodeNeighborhood, RankBuilder, RankCodec, RankError,
+    RankLimits, RankNeighborhood, RankNode, retrieve, retrieve_limited, retrieve_rank_neighborhood,
 };
 
 #[test]
@@ -55,6 +55,65 @@ fn retrieve_uses_only_in_memory_store() {
 
     assert_eq!(first, second);
     assert_eq!(first[0].id, "episode-a");
+}
+
+#[test]
+fn retrieve_accepts_trait_backed_indexes() {
+    struct StaticIndex {
+        entries: Vec<(&'static str, Vec<f32>)>,
+    }
+
+    impl EmbeddingIndex for StaticIndex {
+        fn len(&self) -> usize {
+            self.entries.len()
+        }
+
+        fn dimensions(&self) -> Option<usize> {
+            self.entries.first().map(|(_, embedding)| embedding.len())
+        }
+
+        fn embedding(&self, id: &str) -> Option<&[f32]> {
+            self.entries
+                .iter()
+                .find_map(|(entry_id, embedding)| (*entry_id == id).then_some(embedding.as_slice()))
+        }
+
+        fn ids(&self) -> Box<dyn Iterator<Item = &str> + '_> {
+            Box::new(self.entries.iter().map(|(id, _)| *id))
+        }
+    }
+
+    let index = StaticIndex {
+        entries: vec![("b", vec![0.0, 1.0]), ("a", vec![1.0, 0.0])],
+    };
+    let mut limits = RankLimits::new(4, 64);
+
+    let neighbors = retrieve_limited(&index, &[1.0, 0.0], 1, &mut limits).unwrap();
+
+    assert_eq!(neighbors.len(), 1);
+    assert_eq!(neighbors[0].id, "a");
+}
+
+#[test]
+fn retrieve_limited_fails_before_unbounded_candidate_traversal() {
+    let store = EmbeddingStore::with_entries([
+        ("a", vec![1.0, 0.0]),
+        ("b", vec![0.0, 1.0]),
+        ("c", vec![0.5, 0.5]),
+    ])
+    .unwrap();
+    let mut limits = RankLimits::new(1, 64);
+
+    let error = retrieve_limited(&store, &[1.0, 0.0], 1, &mut limits).unwrap_err();
+
+    assert_eq!(
+        error,
+        RankError::LimitExceeded {
+            limit: "rank.retrieve.candidate",
+            needed: 1,
+            remaining: 0
+        }
+    );
 }
 
 #[test]
