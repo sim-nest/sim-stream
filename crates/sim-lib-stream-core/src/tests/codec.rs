@@ -209,6 +209,37 @@ fn binary_base64_preserves_pcm_sample_count() {
 }
 
 #[test]
+fn zero_frame_pcm_round_trips_through_packet_codecs() {
+    let mut cx = super::cx();
+    install_json_codec(&mut cx);
+    install_lisp_codec(&mut cx);
+    install_binary_codec(&mut cx);
+    install_binary_base64_codec(&mut cx);
+    let packet = StreamPacket::Pcm(PcmPacket::i16(2, 0, Vec::new()).unwrap());
+
+    assert_eq!(
+        roundtrip_packet(&mut cx, &Symbol::qualified("codec", "json"), &packet),
+        packet
+    );
+    assert_eq!(
+        roundtrip_packet(&mut cx, &Symbol::qualified("codec", "lisp"), &packet),
+        packet
+    );
+    assert_eq!(
+        roundtrip_packet(&mut cx, &Symbol::qualified("codec", "binary"), &packet),
+        packet
+    );
+    assert_eq!(
+        roundtrip_packet(
+            &mut cx,
+            &Symbol::qualified("codec", "binary-base64"),
+            &packet,
+        ),
+        packet
+    );
+}
+
+#[test]
 fn data_packet_round_trips_through_lisp() {
     let mut cx = super::cx();
     install_lisp_codec(&mut cx);

@@ -4,7 +4,8 @@
 //! A PCM packet holds an interleaved block of samples described by a channel
 //! count, a frame count, and a [`PcmSampleFormat`]. Sample length must equal
 //! `channels * frames`; the constructors enforce that invariant (and finite
-//! f32 samples) so a packet is always internally consistent.
+//! f32 samples) so a packet is always internally consistent. Zero-frame
+//! packets are valid empty packets when the sample vector is empty.
 
 use sim_kernel::{Error, Expr, Result, Symbol};
 
@@ -38,6 +39,7 @@ impl PcmSampleFormat {
 ///
 /// Carries `channels` interleaved channels of `frames` frames each in a single
 /// sample format. The total sample count always equals `channels * frames`.
+/// A zero-frame packet is a valid empty packet with a nonzero channel count.
 /// Equality compares f32 samples bitwise so packets with `NaN` payloads still
 /// round-trip consistently.
 #[derive(Clone, Debug)]

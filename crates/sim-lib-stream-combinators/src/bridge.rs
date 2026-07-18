@@ -295,6 +295,9 @@ fn resample_packet(packet: &PcmPacket, input_hz: u32, output_hz: u32) -> Result<
 }
 
 fn resampled_frame_count(input_frames: usize, input_hz: u32, output_hz: u32) -> usize {
+    if input_frames == 0 {
+        return 0;
+    }
     let frames = (input_frames as u64)
         .saturating_mul(u64::from(output_hz))
         .saturating_add(u64::from(input_hz / 2))
@@ -309,6 +312,9 @@ fn resample_interleaved<T: Copy>(
     copy: impl Fn(T) -> T,
 ) -> Vec<T> {
     let input_frames = samples.len() / channels;
+    if output_frames == 0 || input_frames == 0 {
+        return Vec::new();
+    }
     let mut out = Vec::with_capacity(output_frames * channels);
     for frame in 0..output_frames {
         let source_frame = frame.saturating_mul(input_frames) / output_frames;

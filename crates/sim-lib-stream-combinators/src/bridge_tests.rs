@@ -36,6 +36,27 @@ fn resampler_bridges_sample_rates_with_nearest_frames() {
 }
 
 #[test]
+fn resampler_and_latency_bridge_preserve_zero_frame_pcm_packets() {
+    let stream = Stream::pull(
+        metadata("pcm-empty", StreamMedia::Pcm),
+        vec![StreamItem::new(StreamPacket::Pcm(
+            PcmPacket::f32(2, 0, Vec::new()).unwrap(),
+        ))],
+    );
+
+    let out = latency_comp_delay(resample_pcm(stream, 48_000, 96_000).unwrap(), 64)
+        .take_packets(1)
+        .unwrap();
+
+    let StreamPacket::Pcm(packet) = out[0].packet() else {
+        panic!("expected PCM packet");
+    };
+    assert_eq!(packet.channels(), 2);
+    assert_eq!(packet.frames(), 0);
+    assert!(packet.samples_f32().is_empty());
+}
+
+#[test]
 fn jitter_buffer_reorders_packets_and_can_drop_late_packets() {
     let reordered = Stream::pull(
         metadata("diag", StreamMedia::Diagnostic),
