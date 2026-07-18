@@ -331,6 +331,13 @@ pub enum PlacementRefusalReason {
     RealtimePinViolation,
     /// The site does not serve the node's latency class.
     UnsupportedLatencyClass,
+    /// The edge crosses clock domains that have no semantic bridge.
+    IncomparableClockDomain {
+        /// The source node's clock domain.
+        from: ClockDomain,
+        /// The destination node's clock domain.
+        to: ClockDomain,
+    },
 }
 
 /// Compiles `topology` and places the resulting graph against `sites`.
@@ -422,7 +429,33 @@ fn placement_refusals(graph: &CompiledGraph, sites: &SiteMap) -> Vec<PlacementRe
             });
         }
     }
+    refusals.extend(edge_clock_refusals(graph, sites));
     refusals
+}
+
+fn edge_clock_refusals(graph: &CompiledGraph, sites: &SiteMap) -> Vec<PlacementRefusal> {
+    graph
+        .edges
+        .iter()
+        .filter_map(|edge| {
+            let from_node = &graph.nodes[edge.from_node].id;
+            let to_node = &graph.nodes[edge.to_node].id;
+            let from_profile = sites.profile_for(from_node);
+            let to_profile = sites.profile_for(to_node);
+            match bridge_plan(
+                from_profile.rate_contract(),
+                to_profile.rate_contract(),
+                sites.site_for(from_node) != sites.site_for(to_node),
+            ) {
+                BridgePlan::Refusal(reason) => Some(PlacementRefusal {
+                    node: to_node.clone(),
+                    site: sites.site_for(to_node).clone(),
+                    reason,
+                }),
+                BridgePlan::Bridge(_) | BridgePlan::None => None,
+            }
+        })
+        .collect()
 }
 
 fn domain_bridges(graph: &CompiledGraph, sites: &SiteMap) -> Vec<DomainBridge> {
@@ -436,36 +469,40 @@ fn domain_bridges(graph: &CompiledGraph, sites: &SiteMap) -> Vec<DomainBridge> {
             let to_site = sites.site_for(to_node);
             let from_profile = sites.profile_for(from_node);
             let to_profile = sites.profile_for(to_node);
-            bridge_descriptor(
+            match bridge_plan(
                 from_profile.rate_contract(),
                 to_profile.rate_contract(),
                 from_site != to_site,
-            )
-            .map(|descriptor| DomainBridge {
-                edge: edge.id,
-                from: from_node.clone(),
-                to: to_node.clone(),
-                from_site: from_site.clone(),
-                to_site: to_site.clone(),
-                descriptor,
-            })
+            ) {
+                BridgePlan::Bridge(descriptor) => Some(DomainBridge {
+                    edge: edge.id,
+                    from: from_node.clone(),
+                    to: to_node.clone(),
+                    from_site: from_site.clone(),
+                    to_site: to_site.clone(),
+                    descriptor,
+                }),
+                BridgePlan::Refusal(_) | BridgePlan::None => None,
+            }
         })
         .collect()
 }
 
-fn bridge_descriptor(
-    from: RateContract,
-    to: RateContract,
-    crosses_site: bool,
-) -> Option<DomainBridgeDescriptor> {
+enum BridgePlan {
+    Bridge(DomainBridgeDescriptor),
+    Refusal(PlacementRefusalReason),
+    None,
+}
+
+fn bridge_plan(from: RateContract, to: RateContract, crosses_site: bool) -> BridgePlan {
     if !crosses_site && from.is_compatible_with(to) {
-        return None;
+        return BridgePlan::None;
     }
     match (from.clock_domain(), to.clock_domain()) {
         (ClockDomain::Sample, ClockDomain::Sample)
             if from.nominal_rate_hz() != to.nominal_rate_hz() =>
         {
-            Some(
+            BridgePlan::Bridge(
                 DomainBridgeDescriptor::resampler(
                     from.nominal_rate_hz().unwrap_or(1),
                     to.nominal_rate_hz().unwrap_or(1),
@@ -473,17 +510,20 @@ fn bridge_descriptor(
                 .expect("planner supplies nonzero fallback resampler rates"),
             )
         }
-        (ClockDomain::Control | ClockDomain::MidiTick, ClockDomain::Block) => Some(
+        (ClockDomain::Control | ClockDomain::MidiTick, ClockDomain::Block) => BridgePlan::Bridge(
             DomainBridgeDescriptor::event_rate_gate(from.clock_domain())
                 .expect("planner only requests event-rate gates for supported event domains"),
         ),
         (ClockDomain::Wall, _) | (_, ClockDomain::Wall) => {
-            Some(DomainBridgeDescriptor::jitter_buffer(1))
+            BridgePlan::Bridge(DomainBridgeDescriptor::jitter_buffer(1))
+        }
+        (from, to) if from != to => {
+            BridgePlan::Refusal(PlacementRefusalReason::IncomparableClockDomain { from, to })
         }
         _ if crosses_site || !from.is_compatible_with(to) => {
-            Some(DomainBridgeDescriptor::latency_comp_delay(0))
+            BridgePlan::Bridge(DomainBridgeDescriptor::latency_comp_delay(0))
         }
-        _ => None,
+        _ => BridgePlan::None,
     }
 }
 

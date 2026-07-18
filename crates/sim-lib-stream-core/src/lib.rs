@@ -22,6 +22,7 @@ pub mod security;
 pub mod shape;
 pub mod site;
 pub mod spine;
+pub mod time;
 
 /// Cookbook recipes for this crate, embedded at build time.
 ///
@@ -88,6 +89,10 @@ pub use spine::{
     stream_metadata_symbol, stream_next_bang, stream_next_symbol, stream_peek_bang,
     stream_peek_symbol, stream_run_bang, stream_run_symbol, stream_stats, stream_stats_symbol,
     stream_take, stream_take_symbol,
+};
+pub use time::{
+    CLOCK_INDEX_REF_NAMESPACE, ClockTickIndex, clock_index_ref, clock_index_symbol,
+    tick_clock_index,
 };
 
 #[cfg(test)]

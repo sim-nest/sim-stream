@@ -1,8 +1,10 @@
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
-use sim_kernel::{Diagnostic, Error, Expr, Ref, Result};
-use sim_lib_stream_core::{StreamDirection, StreamItem, StreamMedia, StreamMetadata, StreamPacket};
+use sim_kernel::{Diagnostic, Error, Expr, Result};
+use sim_lib_stream_core::{
+    ClockTickIndex, StreamDirection, StreamItem, StreamMedia, StreamMetadata, StreamPacket,
+};
 
 use crate::stream::{Stream, StreamNode};
 
@@ -341,7 +343,7 @@ impl StreamNode for MergeNode {
             (Some(_), None) => state.left.take(),
             (None, Some(_)) => state.right.take(),
             (Some(left), Some(right)) => {
-                if merge_key(left, &self.key) <= merge_key(right, &self.key) {
+                if merge_key(left, &self.key)? <= merge_key(right, &self.key)? {
                     state.left.take()
                 } else {
                     state.right.take()
@@ -401,7 +403,7 @@ fn window_metadata(source: &StreamMetadata) -> StreamMetadata {
     )
 }
 
-fn merge_key(item: &StreamItem, key: &MergeKeyFn) -> Option<Ref> {
+fn merge_key(item: &StreamItem, key: &MergeKeyFn) -> Result<Option<ClockTickIndex>> {
     key(item)
 }
 

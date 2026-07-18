@@ -325,7 +325,7 @@ fn golden_stream_fixture_rules_require_replayable_finite_redacted_streams() {
         Symbol::new("device/CoreAudio Built-in Output"),
         StreamMedia::Data,
         StreamDirection::Source,
-        Symbol::new("device/CoreAudio Clock"),
+        ClockDomain::ServerFrame.symbol(),
         BufferPolicy::bounded(4).unwrap(),
     );
     let private = StreamItem::with_ticks(
@@ -392,7 +392,7 @@ fn golden_stream_fixture_rules_require_replayable_finite_redacted_streams() {
 }
 
 #[test]
-fn stream_metadata_clock_falls_back_to_server_frame_domain() {
+fn stream_metadata_clock_rejects_unknown_and_accepts_aliases() {
     let metadata = StreamMetadata::new(
         Symbol::qualified("stream", "external-clock"),
         StreamMedia::Diagnostic,
@@ -402,10 +402,26 @@ fn stream_metadata_clock_falls_back_to_server_frame_domain() {
     );
     let item = StreamItem::new(diagnostic_packet("external"));
 
-    let envelope = StreamEnvelope::from_item(&metadata, 1, &item).unwrap();
+    let err = StreamEnvelope::from_item(&metadata, 1, &item).unwrap_err();
+    assert!(format!("{err}").contains("unknown stream clock domain clock/external"));
 
-    assert_eq!(envelope.clock_domain(), ClockDomain::ServerFrame);
-    assert_eq!(envelope.clock_domains(), &[ClockDomain::ServerFrame]);
+    for clock in [
+        Symbol::new("sample"),
+        Symbol::qualified("clock", "sample"),
+        ClockDomain::Sample.symbol(),
+        Symbol::new("midi"),
+        Symbol::qualified("clock", "midi-tick"),
+        ClockDomain::MidiTick.symbol(),
+    ] {
+        let metadata = StreamMetadata::new(
+            Symbol::qualified("stream", "canonical-clock"),
+            StreamMedia::Diagnostic,
+            StreamDirection::Source,
+            clock,
+            BufferPolicy::bounded(2).unwrap(),
+        );
+        assert!(StreamEnvelope::from_item(&metadata, 1, &item).is_ok());
+    }
 }
 
 #[test]

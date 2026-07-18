@@ -1,5 +1,5 @@
 use sim_kernel::Symbol;
-use sim_lib_stream_core::{BridgeLatency, DomainBridgeKind, LatencyClass};
+use sim_lib_stream_core::{BridgeLatency, ClockDomain, DomainBridgeKind, LatencyClass};
 
 use super::{Graph, Node, PortRef, sym, test_cx};
 use crate::{
@@ -74,6 +74,24 @@ fn site_latency_class_mismatch_is_refused_as_data() {
     }));
 }
 
+#[test]
+fn incomparable_clock_domain_edge_is_refused_as_data() {
+    let mut cx = test_cx();
+    let graph = fx_graph();
+    let report = place(&mut cx, &graph, &incomparable_clock_site_map()).expect("place graph");
+
+    assert!(!report.is_accepted());
+    assert!(report.bridges.is_empty());
+    assert!(report.refusals.iter().any(|refusal| {
+        refusal.node.as_symbol() == &Symbol::new("fx")
+            && refusal.reason
+                == PlacementRefusalReason::IncomparableClockDomain {
+                    from: ClockDomain::Block,
+                    to: ClockDomain::Job,
+                }
+    }));
+}
+
 fn fx_graph() -> Graph {
     let mut graph = Graph::minimal("placement-fx");
     let mut fx = Node::named("fx", "call");
@@ -128,6 +146,23 @@ fn unsupported_latency_site_map() -> SiteMap {
                 sim_lib_stream_core::RateContract::new(
                     sim_lib_stream_core::ClockDomain::Job,
                     LatencyClass::RemoteCollaboration,
+                    None,
+                ),
+                false,
+            ),
+        )
+        .with_node_profile("out", block_profile())
+}
+
+fn incomparable_clock_site_map() -> SiteMap {
+    SiteMap::new(SiteProfile::audio_clock("audio"))
+        .with_node_profile("in", block_profile())
+        .with_node_profile(
+            "fx",
+            PlacementNodeProfile::new(
+                sim_lib_stream_core::RateContract::new(
+                    ClockDomain::Job,
+                    LatencyClass::BlockLocal,
                     None,
                 ),
                 false,

@@ -1,8 +1,5 @@
-use sim_kernel::{
-    Cx, Datum, DatumStore, Diagnostic, Error, Expr, NumberLiteral, Ref, Result, Severity, Symbol,
-    Tick,
-};
-use sim_lib_stream_core::ClockDomain;
+use sim_kernel::{Cx, Diagnostic, Error, Expr, NumberLiteral, Result, Severity, Symbol, Tick};
+use sim_lib_stream_core::{ClockDomain, clock_index_ref};
 
 use crate::{Instant, TempoMap, tempo::midi_tick_duration};
 
@@ -230,27 +227,13 @@ impl Clock {
         }
     }
 
-    /// Interns `index` as datum content and returns the kernel [`Tick`] that
-    /// carries it on this clock.
+    /// Returns the kernel [`Tick`] carrying `index` on this clock.
     ///
-    /// The clock index is stored as a datum node referenced by content, so
-    /// kernel events keep carrying only `Tick` values. Returns an error when
-    /// interning into the datum store fails.
-    pub fn tick_for_index(&self, cx: &mut Cx, index: ClockIndex) -> Result<Tick> {
-        let id = cx.datum_store_mut().intern(Datum::Node {
-            tag: Symbol::qualified("stream/clock", "index"),
-            fields: vec![
-                (Symbol::new("clock"), Datum::Symbol(self.id.clone())),
-                (
-                    Symbol::new("index"),
-                    Datum::Number(NumberLiteral {
-                        domain: Symbol::qualified("stream/clock", "index"),
-                        canonical: index.value().to_string(),
-                    }),
-                ),
-            ],
-        })?;
-        Ok(Tick::new(self.id.clone(), Ref::Content(id)))
+    /// The index is stored in stream-core's semantic clock-index ref namespace,
+    /// so stream operators can compare numeric clock time without resolving
+    /// content bytes.
+    pub fn tick_for_index(&self, _cx: &mut Cx, index: ClockIndex) -> Result<Tick> {
+        Ok(Tick::new(self.id.clone(), clock_index_ref(index.value())))
     }
 
     /// Builds the codec [`Expr`] extension form encoding `index` on this clock.

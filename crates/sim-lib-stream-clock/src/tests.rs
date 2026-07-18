@@ -1,5 +1,5 @@
-use sim_kernel::{DatumStore, Ref, Symbol};
-use sim_lib_stream_core::ClockDomain;
+use sim_kernel::{Ref, Symbol};
+use sim_lib_stream_core::{ClockDomain, clock_index_symbol, tick_clock_index};
 
 use crate::{
     Clock, ClockChart, ClockIndex, Instant, StreamClockDescriptor, TempoMap, TempoSegment,
@@ -86,7 +86,7 @@ fn increasing_instants_produce_non_decreasing_indexes() {
 }
 
 #[test]
-fn clock_index_interns_as_kernel_tick_content_ref() {
+fn clock_index_mints_semantic_tick_ref() {
     let mut cx = cx();
     let clock = Clock::frame(Symbol::qualified("clock", "sample"), 48_000).unwrap();
 
@@ -95,10 +95,14 @@ fn clock_index_interns_as_kernel_tick_content_ref() {
         .unwrap();
 
     assert_eq!(tick.clock, Symbol::qualified("clock", "sample"));
-    let Ref::Content(id) = tick.index else {
-        panic!("clock index should be interned as content ref");
-    };
-    assert!(cx.datum_store().contains(&id));
+    assert_eq!(tick.index, Ref::Symbol(clock_index_symbol(24_000)));
+    assert_eq!(
+        tick_clock_index(&tick, &Symbol::qualified("clock", "sample"))
+            .unwrap()
+            .unwrap()
+            .value(),
+        24_000
+    );
 }
 
 #[test]

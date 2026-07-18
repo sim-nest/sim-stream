@@ -134,10 +134,12 @@ impl ClockDomain {
         }
     }
 
-    /// Resolves the clock domain for a stream's declared clock symbol, falling
-    /// back to [`ClockDomain::ServerFrame`] when the symbol is unrecognized.
-    pub fn for_stream_clock(symbol: &Symbol) -> Self {
-        Self::from_symbol(symbol).unwrap_or(Self::ServerFrame)
+    /// Resolves the clock domain for a stream's declared clock symbol.
+    ///
+    /// Returns an error when the declared clock is outside the canonical stream
+    /// clock-domain aliases accepted by [`ClockDomain::from_symbol`].
+    pub fn for_stream_clock(symbol: &Symbol) -> Result<Self> {
+        Self::from_symbol(symbol)
     }
 }
 
@@ -266,8 +268,8 @@ impl StreamEnvelope {
     ///
     /// Derives the packet id from the stream id and `sequence`, copies the
     /// item's ticks and packet, and resolves the clock domain from the
-    /// metadata's clock via [`ClockDomain::for_stream_clock`]. No diagnostics
-    /// are attached.
+    /// metadata's clock via [`ClockDomain::for_stream_clock`], failing closed
+    /// when the declared clock is unknown. No diagnostics are attached.
     pub fn from_item_with_profile(
         metadata: &StreamMetadata,
         sequence: u64,
@@ -281,7 +283,7 @@ impl StreamEnvelope {
             metadata.direction(),
             sequence,
             item.ticks().to_vec(),
-            ClockDomain::for_stream_clock(metadata.clock()),
+            ClockDomain::for_stream_clock(metadata.clock())?,
             profile,
             Vec::new(),
             item.packet().clone(),

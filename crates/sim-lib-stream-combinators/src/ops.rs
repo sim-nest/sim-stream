@@ -3,7 +3,7 @@ mod nodes;
 use std::sync::{Arc, Mutex};
 
 use sim_kernel::{Cx, Diagnostic, Error, Event, Expr, Ref, Result, Symbol, Tick};
-use sim_lib_stream_core::{StreamDiagnostic, StreamItem, StreamPacket};
+use sim_lib_stream_core::{ClockTickIndex, StreamDiagnostic, StreamItem, StreamPacket};
 
 use crate::stream::Stream;
 
@@ -20,7 +20,7 @@ type PredicateFn = Arc<dyn Fn(&StreamItem) -> Result<bool> + Send + Sync>;
 type ShapePredicateFn = Arc<dyn Fn(&Expr) -> Result<bool> + Send + Sync>;
 type TapFn = Arc<dyn Fn(&StreamItem) -> Result<()> + Send + Sync>;
 type DiagnosticTapFn = Arc<dyn Fn(&StreamDiagnostic) -> Result<()> + Send + Sync>;
-type MergeKeyFn = Arc<dyn Fn(&StreamItem) -> Option<Ref> + Send + Sync>;
+type MergeKeyFn = Arc<dyn Fn(&StreamItem) -> Result<Option<ClockTickIndex>> + Send + Sync>;
 type ClockConvertFn =
     Arc<dyn Fn(&StreamItem) -> Result<(Vec<Tick>, Vec<Diagnostic>)> + Send + Sync>;
 
@@ -219,7 +219,7 @@ pub fn stream_window_data_kind() -> Symbol {
 ///
 /// With no clock key, available packets are emitted left-before-right.
 pub fn merge(left: Stream, right: Stream) -> Stream {
-    nodes::merge_with_key(left, right, Arc::new(|_| None))
+    nodes::merge_with_key(left, right, Arc::new(|_| Ok(None)))
 }
 
 /// Returns a stream merging `left` and `right` ordered by their `clock` tick.
@@ -231,10 +231,9 @@ pub fn merge_by_clock(left: Stream, right: Stream, clock: Symbol) -> Stream {
         left,
         right,
         Arc::new(move |item| {
-            item.ticks()
-                .iter()
-                .find(|tick| tick.clock == clock)
-                .map(|tick| tick.index.clone())
+            item.ticks().iter().try_fold(None, |found, tick| {
+                sim_lib_stream_core::tick_clock_index(tick, &clock).map(|parsed| found.or(parsed))
+            })
         }),
     )
 }

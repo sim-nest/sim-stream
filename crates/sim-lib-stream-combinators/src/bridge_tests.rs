@@ -4,7 +4,8 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
-use sim_kernel::{ContentId, Ref, Result, Symbol, Tick};
+use sim_kernel::{ContentId, DefaultFactory, NoopEvalPolicy, Ref, Result, Symbol, Tick};
+use sim_lib_stream_clock::{Clock, ClockIndex};
 use sim_lib_stream_core::{
     BufferPolicy, ClockDomain, PcmPacket, StreamDirection, StreamItem, StreamMedia, StreamMetadata,
     StreamPacket,
@@ -89,6 +90,18 @@ fn jitter_buffer_drops_packets_beyond_the_positive_lateness_bound() {
 }
 
 #[test]
+fn jitter_buffer_rejects_incomparable_clock_index_refs() {
+    let source = Stream::pull(
+        metadata("content-index", StreamMedia::Diagnostic),
+        vec![content_ref_packet("content-ref", 1), packet("semantic", 2)],
+    );
+
+    let err = jitter_buffer(source, clock(), 1).next_packet().unwrap_err();
+
+    assert!(format!("{err}").contains("incomparable index"));
+}
+
+#[test]
 fn jitter_buffer_keeps_equal_ticks_in_arrival_order() {
     let source = Stream::pull(
         metadata("ties", StreamMedia::Diagnostic),
@@ -130,6 +143,25 @@ fn deterministic_passthrough_bridges_preserve_packet_order() {
     assert_eq!(messages(out), vec!["one", "two"]);
 }
 
+#[test]
+fn event_rate_gate_rejects_unknown_declared_clock() {
+    let stream = Stream::pull(
+        metadata_with_clock(
+            "unknown-clock",
+            StreamMedia::Diagnostic,
+            Symbol::qualified("clock", "external"),
+        ),
+        vec![packet("one", 1)],
+    );
+
+    let err = match event_rate_gate(stream) {
+        Ok(_) => panic!("unknown declared clock should be rejected"),
+        Err(err) => err,
+    };
+
+    assert!(format!("{err}").contains("unknown stream clock domain clock/external"));
+}
+
 fn metadata(name: &str, media: StreamMedia) -> StreamMetadata {
     metadata_with_clock(name, media, clock())
 }
@@ -150,6 +182,17 @@ fn packet(message: &str, tick: u8) -> StreamItem {
             Symbol::qualified("stream/test", "packet"),
             message,
         )),
+        vec![tick_ref(tick)],
+    )
+    .unwrap()
+}
+
+fn content_ref_packet(message: &str, tick: u8) -> StreamItem {
+    StreamItem::with_ticks(
+        StreamPacket::Diagnostic(sim_lib_stream_core::StreamDiagnostic::new(
+            Symbol::qualified("stream/test", "packet"),
+            message,
+        )),
         vec![Tick::new(
             clock(),
             Ref::Content(ContentId::from_bytes(
@@ -159,6 +202,17 @@ fn packet(message: &str, tick: u8) -> StreamItem {
         )],
     )
     .unwrap()
+}
+
+fn tick_ref(index: u8) -> Tick {
+    let mut cx = sim_kernel::Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    test_clock()
+        .tick_for_index(&mut cx, ClockIndex::new(u64::from(index)))
+        .unwrap()
+}
+
+fn test_clock() -> Clock {
+    Clock::frame_with_domain(clock(), ClockDomain::Control, 1).unwrap()
 }
 
 fn messages(items: Vec<StreamItem>) -> Vec<String> {
