@@ -1,0 +1,5 @@
+book = "stream-device"
+title = "Stream Device"
+summary = "Hardware-free device sample descriptors and modeled sources."
+order = 120
+chapters = ["01-basics"]

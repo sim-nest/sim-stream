@@ -1,0 +1,27 @@
+[package]
+name = "sim-lib-stream-device"
+version = "0.1.0"
+edition = "2024"
+license = "MPL-2.0"
+description = "Hardware-free device sample contracts for SIM stream sources."
+readme = "README.md"
+publish = true
+repository = "https://github.com/sim-nest/sim-stream"
+homepage = "https://github.com/sim-nest/sim-stream"
+
+[dependencies]
+sim-citizen = { version = "0.1.0" }
+sim-cookbook = { version = "0.1.0" }
+sim-kernel = { version = "0.1.0" }
+sim-lib-core = { version = "0.1.0" }
+sim-lib-stream-core = { version = "0.1.0", path = "../sim-lib-stream-core" }
+sim-value = { version = "0.1.0" }
+
+[dev-dependencies]
+sim-kernel = { version = "0.1.0", features = ["test-support"] }
+
+[build-dependencies]
+sim-cookbook = { version = "0.1.0" }
+
+[lints]
+workspace = true

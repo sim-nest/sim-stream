@@ -37,6 +37,13 @@
       "summary": "Core stream envelopes, metadata, packets, and buffer values."
     },
     {
+      "crate_name": "sim_lib_stream_device",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-stream-device/Cargo.toml",
+      "package": "sim-lib-stream-device",
+      "summary": "Device sample contracts and deterministic modeled sources for SIM streams."
+    },
+    {
       "crate_name": "sim_lib_stream_prelude",
       "group": "workspace",
       "manifest": "crates/sim-lib-stream-prelude/Cargo.toml",

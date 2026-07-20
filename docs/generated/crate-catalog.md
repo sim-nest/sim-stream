@@ -11,6 +11,7 @@ Generated from Cargo metadata by `xtask crate-catalog v1`.
 | `sim-lib-stream-clock` | `true` | `custom-build, lib` | Clock charts and tick conversion helpers for SIM streams. |
 | `sim-lib-stream-combinators` | `true` | `custom-build, lib` | Lazy in-memory combinators for SIM stream packets. |
 | `sim-lib-stream-core` | `true` | `custom-build, lib` | Core stream metadata, packets, envelopes, and buffer values. |
+| `sim-lib-stream-device` | `true` | `custom-build, lib` | Hardware-free device sample contracts for SIM stream sources. |
 | `sim-lib-stream-prelude` | `true` | `custom-build, lib` | Lisp-facing prelude for SIM memory streams. |
 | `sim-lib-topology` | `true` | `custom-build, lib` | Data-driven topology engine. |
 | `xtask` | `false` | `bin` | Repository maintenance tasks for sim-stream. |

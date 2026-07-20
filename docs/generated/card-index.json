@@ -1,5 +1,5 @@
 {
-  "card_count": 9,
+  "card_count": 10,
   "cards": [
     {
       "id": "browse/catalog",
@@ -36,6 +36,12 @@
       "kind": "cookbook-recipe",
       "owner": "sim-lib-stream-core",
       "summary": "Stream metadata and descriptor shapes."
+    },
+    {
+      "id": "cookbook/stream-device",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-stream-device",
+      "summary": "Hardware-free device sample descriptors and modeled sources."
     },
     {
       "id": "cookbook/stream-prelude",
