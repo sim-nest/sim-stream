@@ -72,6 +72,11 @@
     {
       "features": [],
       "group": "workspace",
+      "package": "sim-lib-stream-wrist"
+    },
+    {
+      "features": [],
+      "group": "workspace",
       "package": "sim-lib-topology"
     },
     {

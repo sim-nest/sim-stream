@@ -62,6 +62,14 @@ draw on. Every library installs into a runtime as a capability-gated
 - `sim-lib-stream-audio` -- PCM source and sink adapters. The in-memory source
   and sink are deterministic backends; stream observation still flows through
   stream-core packets and spines.
+- `sim-lib-stream-device` -- hardware-free device sample contracts and
+  deterministic modeled sources. Device capabilities and concrete sensor
+  samples travel as ordinary stream data with strict kind tags and monotone
+  sequence numbers.
+- `sim-lib-stream-wrist` -- worn-device sample contracts for heart-rate,
+  motion, location, battery, connection, and wrist input streams. Modeled
+  sources emit deterministic watch-style samples, and microphone events carry
+  raw framed audio rather than transcripts or voice intent.
 - `sim-lib-stream-prelude` -- the umbrella library that composes core, audio,
   and combinators into a single host-registered library. It installs
   capability-gated functions for opening deterministic memory MIDI and PCM

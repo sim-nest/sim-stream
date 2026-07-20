@@ -1,5 +1,5 @@
 {
-  "card_count": 10,
+  "card_count": 11,
   "cards": [
     {
       "id": "browse/catalog",
@@ -50,6 +50,12 @@
       "summary": "Lisp-facing memory stream operations and stream Cards."
     },
     {
+      "id": "cookbook/stream-wrist",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-stream-wrist",
+      "summary": "Worn-device sample descriptors and modeled wrist sources."
+    },
+    {
       "id": "cookbook/topology",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-topology",
@@ -78,6 +84,7 @@
       "sim-lib-stream-core",
       "sim-lib-stream-device",
       "sim-lib-stream-prelude",
+      "sim-lib-stream-wrist",
       "sim-lib-topology",
       "xtask"
     ]
@@ -133,7 +140,7 @@
       "reason": "live topology eval-fabric handle; reconstruct from topology/Package descriptor data"
     }
   ],
-  "package_count": 9,
+  "package_count": 10,
   "packages": [
     {
       "crate_name": "sim_lib_rank",
@@ -504,6 +511,59 @@
       ]
     },
     {
+      "crate_name": "sim_lib_stream_wrist",
+      "dependencies": [
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-stream-core",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-stream-device",
+          "rename": null,
+          "target": null
+        }
+      ],
+      "description": "Worn-device stream contracts and deterministic modeled wrist sources.",
+      "features": [],
+      "group": "workspace",
+      "manifest": "crates/sim-lib-stream-wrist/Cargo.toml",
+      "name": "sim-lib-stream-wrist",
+      "publish": "true",
+      "root": "crates/sim-lib-stream-wrist",
+      "rustdoc_summary": "Worn-device sample contracts and deterministic modeled wrist sources.",
+      "target_kinds": [
+        "custom-build",
+        "lib"
+      ],
+      "targets": [
+        {
+          "crate_types": [
+            "lib"
+          ],
+          "kind": [
+            "lib"
+          ],
+          "name": "sim_lib_stream_wrist",
+          "src": "crates/sim-lib-stream-wrist/src/lib.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "custom-build"
+          ],
+          "name": "build-script-build",
+          "src": "crates/sim-lib-stream-wrist/build.rs"
+        }
+      ]
+    },
+    {
       "crate_name": "sim_lib_topology",
       "dependencies": [
         {
@@ -582,10 +642,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-15T01:30:25+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "4dda4235d6ef91b28035882cd0dcd8d7d721cfb2",
+    "git_commit": "54c4a973aef89328e0bcd92d096d8defb6ef8990",
     "repo": "sim-stream",
     "schema": "sim.provenance.v1",
-    "source_commit": "4dda4235d6ef91b28035882cd0dcd8d7d721cfb2",
+    "source_commit": "54c4a973aef89328e0bcd92d096d8defb6ef8990",
     "source_remote": "https://github.com/sim-nest/sim-stream",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -598,9 +658,9 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "2196f898a7fb5ad8",
+    "workspace_hash": "6735fe8fd7c3d6b6",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 255,
+    "workspace_hash_input_count": 265,
     "workspace_hash_inputs": [
       "Cargo.toml",
       "crates/sim-lib-rank/Cargo.toml",
@@ -790,6 +850,16 @@
       "crates/sim-lib-stream-prelude/src/tests/support.rs",
       "crates/sim-lib-stream-prelude/src/tests.rs",
       "crates/sim-lib-stream-prelude/src/transform.rs",
+      "crates/sim-lib-stream-wrist/Cargo.toml",
+      "crates/sim-lib-stream-wrist/build.rs",
+      "crates/sim-lib-stream-wrist/recipes/01-basics/worn-heart-rate/recipe.toml",
+      "crates/sim-lib-stream-wrist/recipes/book.toml",
+      "crates/sim-lib-stream-wrist/src/citizen.rs",
+      "crates/sim-lib-stream-wrist/src/cookbook.rs",
+      "crates/sim-lib-stream-wrist/src/lib.rs",
+      "crates/sim-lib-stream-wrist/src/modeled.rs",
+      "crates/sim-lib-stream-wrist/src/worn.rs",
+      "crates/sim-lib-stream-wrist/src/worn_tests.rs",
       "crates/sim-lib-topology/Cargo.toml",
       "crates/sim-lib-topology/build.rs",
       "crates/sim-lib-topology/recipes/01-basics/tiny-graph/recipe.toml",
@@ -859,7 +929,7 @@
       "xtask/Cargo.toml"
     ]
   },
-  "recipe_book_count": 8,
+  "recipe_book_count": 9,
   "recipes": [
     {
       "book": "rank",
@@ -1016,6 +1086,26 @@
       ],
       "summary": "Lisp-facing memory stream operations and stream Cards.",
       "title": "Stream Prelude"
+    },
+    {
+      "book": "stream-wrist",
+      "book_toml": "crates/sim-lib-stream-wrist/recipes/book.toml",
+      "card_id": "cookbook/stream-wrist",
+      "group": "workspace",
+      "package": "sim-lib-stream-wrist",
+      "recipe_count": 1,
+      "recipes": [
+        {
+          "card_id": "stream-wrist/01-basics/worn-heart-rate",
+          "codec": "lisp",
+          "id": "worn-heart-rate",
+          "package": "sim-lib-stream-wrist",
+          "recipe_toml": "crates/sim-lib-stream-wrist/recipes/01-basics/worn-heart-rate/recipe.toml",
+          "title": "Worn heart-rate descriptor"
+        }
+      ],
+      "summary": "Worn-device sample descriptors and modeled wrist sources.",
+      "title": "Stream Wrist"
     },
     {
       "book": "topology",

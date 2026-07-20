@@ -1,5 +1,5 @@
 {
-  "card_count": 10,
+  "card_count": 11,
   "cards": [
     {
       "id": "browse/catalog",
@@ -48,6 +48,12 @@
       "kind": "cookbook-recipe",
       "owner": "sim-lib-stream-prelude",
       "summary": "Lisp-facing memory stream operations and stream Cards."
+    },
+    {
+      "id": "cookbook/stream-wrist",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-stream-wrist",
+      "summary": "Worn-device sample descriptors and modeled wrist sources."
     },
     {
       "id": "cookbook/topology",

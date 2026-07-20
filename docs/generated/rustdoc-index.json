@@ -51,6 +51,13 @@
       "summary": "Lisp-facing prelude for SIM memory streams."
     },
     {
+      "crate_name": "sim_lib_stream_wrist",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-stream-wrist/Cargo.toml",
+      "package": "sim-lib-stream-wrist",
+      "summary": "Worn-device sample contracts and deterministic modeled wrist sources."
+    },
+    {
       "crate_name": "sim_lib_topology",
       "group": "workspace",
       "manifest": "crates/sim-lib-topology/Cargo.toml",
