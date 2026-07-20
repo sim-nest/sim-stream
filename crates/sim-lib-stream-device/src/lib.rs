@@ -1,4 +1,3 @@
-#![forbid(unsafe_code)]
 #![deny(missing_docs)]
 //! Device sample contracts and deterministic modeled sources for SIM streams.
 //!
