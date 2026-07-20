@@ -1,6 +1,6 @@
 # sim-lib-stream-wrist
 
-In one line: Watch and wearable sensor streams that are strict enough for tests before a real wrist device exists.
+In one line: Watch and wearable sensor streams that are strict enough for tests without requiring a real wrist device.
 
 ## What it gives you
 
