@@ -13,5 +13,6 @@ Generated from Cargo metadata by `xtask crate-catalog v1`.
 | `sim-lib-stream-core` | `true` | `custom-build, lib` | Core stream metadata, packets, envelopes, and buffer values. |
 | `sim-lib-stream-device` | `true` | `custom-build, lib` | Hardware-free device sample contracts for SIM stream sources. |
 | `sim-lib-stream-prelude` | `true` | `custom-build, lib` | Lisp-facing prelude for SIM memory streams. |
+| `sim-lib-stream-wrist` | `true` | `custom-build, lib` | Worn-device stream contracts and deterministic modeled wrist sources. |
 | `sim-lib-topology` | `true` | `custom-build, lib` | Data-driven topology engine. |
 | `xtask` | `false` | `bin` | Repository maintenance tasks for sim-stream. |
