@@ -1,5 +1,5 @@
 {
-  "card_count": 11,
+  "card_count": 12,
   "cards": [
     {
       "id": "browse/catalog",
@@ -54,6 +54,12 @@
       "kind": "cookbook-recipe",
       "owner": "sim-lib-stream-wrist",
       "summary": "Worn-device sample descriptors and modeled wrist sources."
+    },
+    {
+      "id": "cookbook/stream-xr",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-stream-xr",
+      "summary": "XR glasses sample descriptors and modeled sources."
     },
     {
       "id": "cookbook/topology",

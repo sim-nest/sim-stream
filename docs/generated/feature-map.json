@@ -77,6 +77,11 @@
     {
       "features": [],
       "group": "workspace",
+      "package": "sim-lib-stream-xr"
+    },
+    {
+      "features": [],
+      "group": "workspace",
       "package": "sim-lib-topology"
     },
     {

@@ -46,6 +46,11 @@
 {"kind":"recipe","path":"crates/sim-lib-stream-wrist/recipes/01-basics/worn-heart-rate/recipe.toml"}
 {"kind":"recipe","path":"crates/sim-lib-stream-wrist/recipes/01-basics/worn-heart-rate/setup.siml"}
 {"kind":"recipe","path":"crates/sim-lib-stream-wrist/recipes/book.toml"}
+{"kind":"recipe","path":"crates/sim-lib-stream-xr/recipes/01-basics/chapter.toml"}
+{"kind":"recipe","path":"crates/sim-lib-stream-xr/recipes/01-basics/xr-pose/purpose.md"}
+{"kind":"recipe","path":"crates/sim-lib-stream-xr/recipes/01-basics/xr-pose/recipe.toml"}
+{"kind":"recipe","path":"crates/sim-lib-stream-xr/recipes/01-basics/xr-pose/setup.siml"}
+{"kind":"recipe","path":"crates/sim-lib-stream-xr/recipes/book.toml"}
 {"kind":"recipe","path":"crates/sim-lib-topology/recipes/01-basics/chapter.toml"}
 {"kind":"recipe","path":"crates/sim-lib-topology/recipes/01-basics/tiny-graph/purpose.md"}
 {"kind":"recipe","path":"crates/sim-lib-topology/recipes/01-basics/tiny-graph/recipe.toml"}

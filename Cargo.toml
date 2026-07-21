@@ -10,6 +10,7 @@ members = [
   "crates/sim-lib-stream-device",
   "crates/sim-lib-stream-prelude",
   "crates/sim-lib-stream-wrist",
+  "crates/sim-lib-stream-xr",
   "crates/sim-lib-topology",
   "xtask",
 ]

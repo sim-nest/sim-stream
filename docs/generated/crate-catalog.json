@@ -1,6 +1,6 @@
 {
   "generator": "xtask crate-catalog v1",
-  "package_count": 10,
+  "package_count": 11,
   "packages": [
     {
       "description": "Coordinate, codec, order, search, and optional domain rank spaces.",
@@ -101,6 +101,19 @@
       "publish": "true",
       "readme": "crates/sim-lib-stream-wrist/README.md",
       "root": "crates/sim-lib-stream-wrist",
+      "target_kinds": [
+        "custom-build",
+        "lib"
+      ]
+    },
+    {
+      "description": "XR glasses stream contracts and deterministic modeled sources.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-stream-xr/Cargo.toml",
+      "name": "sim-lib-stream-xr",
+      "publish": "true",
+      "readme": "crates/sim-lib-stream-xr/README.md",
+      "root": "crates/sim-lib-stream-xr",
       "target_kinds": [
         "custom-build",
         "lib"
