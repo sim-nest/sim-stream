@@ -11,6 +11,7 @@
 pub mod citizen;
 pub mod cookbook;
 pub mod modeled;
+pub mod quorum;
 pub mod worn;
 
 /// Cookbook recipes for this crate, embedded at build time.
@@ -26,10 +27,14 @@ pub use modeled::{
     ModeledBatterySource, ModeledConnectionSource, ModeledHeartRateSource, ModeledLocationSource,
     ModeledMotionSource,
 };
+pub use quorum::{HeartRateQuorum, QuorumSide, heart_rate_quorum};
 pub use worn::{
     MicAudioFrame, WORN_CONFIDENCE_MAX, WornEvent, WornSensor, mic_audio_raw_frame_symbol,
     worn_event_sample_kind_symbol,
 };
+
+#[cfg(test)]
+mod quorum_tests;
 
 #[cfg(test)]
 mod worn_tests;
