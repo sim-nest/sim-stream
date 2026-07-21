@@ -157,7 +157,7 @@ pub fn wrist_stream_exports() -> Vec<Export> {
     let mut exports = vec![
         Export::Class {
             symbol: worn_event_class_symbol(),
-            class_id: Some(WORN_EVENT_CLASS_ID),
+            class_id: None,
         },
         Export::Value {
             symbol: crate::worn_event_sample_kind_symbol(),
@@ -183,8 +183,7 @@ fn register_worn_event_class(linker: &mut Linker<'_>) -> Result<()> {
     let class = DefaultFactory
         .opaque(Arc::new(WornEventClass))
         .expect("worn event class should be boxable");
-    let id = linker.class_with_id(worn_event_class_symbol(), WORN_EVENT_CLASS_ID)?;
-    linker.bind_class_value(id, class)?;
+    linker.class_value(worn_event_class_symbol(), class)?;
     Ok(())
 }
 
