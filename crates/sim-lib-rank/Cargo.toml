@@ -1,6 +1,6 @@
 [package]
 name = "sim-lib-rank"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 license = "MPL-2.0"
 description = "Coordinate, codec, order, search, and optional domain rank spaces."
@@ -16,7 +16,7 @@ sim-citizen = { version = "0.1.0" }
 sim-codec-binary = { optional = true, version = "0.1.0" }
 sim-kernel = { version = "0.1.0" }
 sim-lib-core = { version = "0.1.0" }
-sim-lib-stream-core = { version = "0.1.0", path = "../sim-lib-stream-core" }
+sim-lib-stream-core = { version = "0.1.3", path = "../sim-lib-stream-core" }
 
 [dev-dependencies]
 sim-codec = { version = "0.1.0" }
