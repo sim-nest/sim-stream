@@ -45,6 +45,23 @@ fn stream_item_converts_to_versioned_envelope() {
 }
 
 #[test]
+fn stream_item_preserves_non_stream_ticks_without_clock_domain_summary() {
+    let rank_tick = Tick::new(
+        Symbol::qualified("rank/order", "position"),
+        Ref::Symbol(Symbol::qualified("rank/ordinal", "zero")),
+    );
+    let item =
+        StreamItem::with_ticks(diagnostic_packet("ranked"), vec![rank_tick.clone()]).unwrap();
+    let metadata = diagnostic_metadata();
+
+    let envelope = StreamEnvelope::from_item(&metadata, 9, &item).unwrap();
+
+    assert_eq!(envelope.ticks(), &[rank_tick]);
+    assert_eq!(envelope.clock_domain(), ClockDomain::Sample);
+    assert_eq!(envelope.clock_domains(), &[ClockDomain::Sample]);
+}
+
+#[test]
 fn stream_item_can_select_remote_fabric_profile() {
     let item = StreamItem::new(diagnostic_packet("remote"));
     let metadata = diagnostic_metadata();

@@ -101,8 +101,10 @@ impl StreamEnvelope {
     ///
     /// Validates the ticks via the kernel, requires `media` to equal the
     /// wrapped packet's media (erroring otherwise), augments `clock_domains`
-    /// with each tick's clock domain, and normalizes the result so the primary
-    /// `clock_domain` leads and no domain repeats. The stored version is always
+    /// with each recognized stream tick clock domain, and normalizes the result
+    /// so the primary `clock_domain` leads and no domain repeats. Ticks on
+    /// other protocol clocks remain attached to the envelope but do not expand
+    /// the stream clock-domain summary. The stored version is always
     /// [`STREAM_ENVELOPE_VERSION`].
     #[allow(clippy::too_many_arguments)]
     pub fn new_with_clock_domains(
@@ -128,9 +130,11 @@ impl StreamEnvelope {
             )));
         }
         let mut all_clock_domains = clock_domains;
-        for tick in &ticks {
-            all_clock_domains.push(ClockDomain::from_symbol(&tick.clock)?);
-        }
+        all_clock_domains.extend(
+            ticks
+                .iter()
+                .filter_map(|tick| ClockDomain::from_symbol(&tick.clock).ok()),
+        );
         let clock_domains = normalize_clock_domains(clock_domain, all_clock_domains);
         Ok(Self {
             version: STREAM_ENVELOPE_VERSION,
