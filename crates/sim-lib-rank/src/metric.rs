@@ -116,6 +116,7 @@ impl RankNeighborhood for GenericNodeNeighborhood {
         let node = codec.unrank_node(ordinal)?;
         let mut candidates = Vec::new();
         node_neighbors(&node, &mut candidates);
+        limits.check_count(candidates.len(), "rank.neighbors.candidates")?;
 
         let mut ordinals = Vec::new();
         for candidate in candidates {

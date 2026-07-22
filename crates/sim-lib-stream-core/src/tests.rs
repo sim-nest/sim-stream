@@ -8,61 +8,22 @@ use sim_kernel::{
 };
 
 use crate::{
-    BackpressureOutcome, BufferOverflowPolicy, BufferPolicy, ClockDomain, LatencyClass, MidiPacket,
-    MidiPacketEvent, PcmPacket, PcmSampleFormat, StreamCapability, StreamCassette, StreamDirection,
-    StreamEnvelope, StreamEventSource, StreamItem, StreamMedia, StreamMetadata,
-    StreamMetadataValue, StreamPacket, StreamPacketDescriptor, TransportProfile,
-    install_stream_core_classes, publish_metadata_claims,
+    BackpressureOutcome, BufferOverflowPolicy, BufferPolicy, ClockDomain, LatencyClass, PcmPacket,
+    StreamCapability, StreamCassette, StreamDirection, StreamEnvelope, StreamEventSource,
+    StreamItem, StreamMedia, StreamMetadata, StreamMetadataValue, StreamPacket,
+    StreamPacketDescriptor, TransportProfile, install_stream_core_classes, publish_metadata_claims,
     spine::{PushResult, stream_next_bang, stream_run_bang},
     stream_cassette_format_symbol, stream_cassette_golden_root, stream_direction_predicate,
     stream_media_predicate, stream_metadata_class_symbol, stream_packet_class_symbol,
 };
 
 mod codec;
+mod envelope;
+mod live_completion;
+mod packet;
 mod profile;
 
 use sim_kernel::testing::bare_cx as cx;
-
-#[test]
-fn capacity_zero_rejected() {
-    assert!(BufferPolicy::bounded(0).is_err());
-}
-
-#[test]
-fn pcm_buffer_length_mismatch_rejected() {
-    let err = PcmPacket::i16(2, 2, vec![1, 2, 3]).unwrap_err();
-    assert!(format!("{err}").contains("does not match"));
-}
-
-#[test]
-fn pcm_f32_packet_round_trips_through_expr() {
-    let packet = StreamPacket::Pcm(PcmPacket::f32(2, 2, vec![0.0, -0.5, 1.0, -1.0]).unwrap());
-
-    let decoded = StreamPacket::try_from(packet.to_expr()).unwrap();
-
-    assert_eq!(decoded, packet);
-    let StreamPacket::Pcm(pcm) = decoded else {
-        panic!("expected decoded PCM packet");
-    };
-    assert_eq!(pcm.sample_format(), PcmSampleFormat::F32);
-    assert_eq!(pcm.samples_f32(), &[0.0, -0.5, 1.0, -1.0]);
-}
-
-#[test]
-fn pcm_f32_packet_rejects_non_finite_samples() {
-    let err = PcmPacket::f32(1, 1, vec![f32::NAN]).unwrap_err();
-    assert!(format!("{err}").contains("must be finite"));
-}
-
-#[test]
-fn midi_packet_rejects_mixed_tpq() {
-    let first = MidiPacketEvent::new(0, 480, vec![0x90, 60, 100]).unwrap();
-    let second = MidiPacketEvent::new(1, 960, vec![0x80, 60, 0]).unwrap();
-
-    let err = MidiPacket::new(vec![first, second]).unwrap_err();
-
-    assert!(format!("{err}").contains("shared TPQ"));
-}
 
 #[test]
 fn citizen_packet_descriptor_round_trips_and_fails_closed() {
@@ -212,203 +173,6 @@ fn packet_ref_interning_yields_content_ref_for_chunk_events() {
 }
 
 #[test]
-fn stream_item_converts_to_versioned_envelope() {
-    let sample_tick = Tick::new(
-        Symbol::qualified("clock", "sample"),
-        Ref::Symbol(Symbol::qualified("frame", "zero")),
-    );
-    let transport_tick = Tick::new(
-        Symbol::qualified("clock", "transport"),
-        Ref::Symbol(Symbol::qualified("bar", "one")),
-    );
-    let item = StreamItem::with_ticks(
-        diagnostic_packet("wrapped"),
-        vec![sample_tick.clone(), transport_tick.clone()],
-    )
-    .unwrap();
-    let metadata = diagnostic_metadata();
-
-    let envelope = StreamEnvelope::from_item(&metadata, 7, &item).unwrap();
-
-    assert_eq!(envelope.version(), crate::STREAM_ENVELOPE_VERSION);
-    assert_eq!(envelope.stream_id(), metadata.id());
-    assert_eq!(
-        envelope.packet_id().namespace.as_deref(),
-        Some("stream/packet-id")
-    );
-    assert_eq!(envelope.media(), StreamMedia::Diagnostic);
-    assert_eq!(envelope.direction(), StreamDirection::Source);
-    assert_eq!(envelope.sequence(), 7);
-    assert_eq!(envelope.ticks(), &[sample_tick, transport_tick]);
-    assert_eq!(envelope.clock_domain(), ClockDomain::Sample);
-    assert_eq!(
-        envelope.clock_domains(),
-        &[ClockDomain::Sample, ClockDomain::Transport]
-    );
-    assert_eq!(envelope.profile().latency_class(), LatencyClass::BlockLocal);
-    assert!(
-        envelope
-            .profile()
-            .capabilities()
-            .contains(&StreamCapability::Replayable)
-    );
-    assert_eq!(envelope.packet(), item.packet());
-}
-
-#[test]
-fn stream_item_can_select_remote_fabric_profile() {
-    let item = StreamItem::new(diagnostic_packet("remote"));
-    let metadata = diagnostic_metadata();
-
-    let envelope = StreamEnvelope::from_item_with_profile(
-        &metadata,
-        3,
-        &item,
-        TransportProfile::remote_stream_fabric(),
-    )
-    .unwrap();
-
-    assert_eq!(
-        envelope.profile().name(),
-        &Symbol::qualified("stream/profile", "remote-stream-fabric")
-    );
-    assert_eq!(
-        envelope.profile().latency_class(),
-        LatencyClass::RemoteCollaboration
-    );
-    assert!(envelope.profile().has_capability(StreamCapability::Remote));
-    assert!(
-        envelope
-            .profile()
-            .has_capability(StreamCapability::Resumable)
-    );
-}
-
-#[test]
-fn stream_cassette_records_envelopes_timing_diagnostics_and_final_stats() {
-    let stream = crate::StreamValue::pull(
-        diagnostic_metadata(),
-        vec![item("one"), ticked_item("two", 2)],
-    );
-
-    let cassette =
-        StreamCassette::from_stream_value(&stream, TransportProfile::memory_local()).unwrap();
-    let decoded = StreamCassette::from_expr(&cassette.to_expr()).unwrap();
-
-    assert_eq!(decoded, cassette);
-    assert_eq!(
-        table_value(&cassette.to_expr(), "cassette"),
-        Some(&Expr::Symbol(stream_cassette_format_symbol()))
-    );
-    assert_eq!(cassette.envelopes().len(), 2);
-    assert_eq!(cassette.timing().packet_count, 2);
-    assert_eq!(cassette.timing().first_sequence, Some(0));
-    assert_eq!(cassette.timing().last_sequence, Some(1));
-    assert_eq!(
-        cassette.diagnostics(),
-        &[Symbol::qualified("stream/test", "packet")]
-    );
-    assert_eq!(cassette.final_stats().yielded, 2);
-    assert_eq!(
-        cassette
-            .replay_stream_value()
-            .unwrap()
-            .take_packets(4)
-            .unwrap(),
-        vec![item("one"), ticked_item("two", 2)]
-    );
-}
-
-#[test]
-fn golden_stream_fixture_rules_require_replayable_finite_redacted_streams() {
-    let metadata = StreamMetadata::new(
-        Symbol::new("device/CoreAudio Built-in Output"),
-        StreamMedia::Data,
-        StreamDirection::Source,
-        Symbol::new("device/CoreAudio Clock"),
-        BufferPolicy::bounded(4).unwrap(),
-    );
-    let private = StreamItem::with_ticks(
-        StreamPacket::data(
-            Symbol::qualified("stream/private", "payload"),
-            Expr::Map(vec![
-                (Expr::Symbol(Symbol::new("private")), Expr::Bool(true)),
-                (
-                    Expr::Symbol(Symbol::new("device")),
-                    Expr::String("hw:USB Keyboard".to_owned()),
-                ),
-            ]),
-        ),
-        vec![Tick::new(
-            Symbol::qualified("clock", "sample"),
-            Ref::Symbol(Symbol::new("device/CoreAudio Frame")),
-        )],
-    )
-    .unwrap();
-    let cassette = StreamCassette::from_items(
-        metadata,
-        vec![private],
-        TransportProfile::memory_local(),
-        Default::default(),
-    )
-    .unwrap();
-
-    assert!(
-        cassette
-            .validate_golden_fixture("fixtures/streams/golden/private.simcassette")
-            .is_err()
-    );
-
-    let redacted = cassette.redacted().unwrap();
-    let report = redacted
-        .validate_golden_fixture("fixtures/streams/golden/private.simcassette")
-        .unwrap();
-    assert_eq!(report.format, stream_cassette_format_symbol());
-    assert_eq!(report.packet_count, 1);
-    assert_eq!(
-        redacted.metadata().clock(),
-        &ClockDomain::ServerFrame.symbol()
-    );
-    assert_eq!(
-        redacted.items().unwrap()[0].ticks()[0].index,
-        Ref::Symbol(Symbol::qualified("stream/redacted", "device"))
-    );
-    assert_eq!(stream_cassette_golden_root(), "fixtures/streams/golden");
-    assert!(
-        redacted
-            .validate_golden_fixture("tmp/private.simcassette")
-            .is_err()
-    );
-    assert!(
-        redacted
-            .validate_golden_fixture("fixtures/streams/goldenish/private.simcassette")
-            .is_err()
-    );
-    assert!(
-        redacted
-            .validate_golden_fixture("fixtures/streams/golden/private.simcassette.bak")
-            .is_err()
-    );
-}
-
-#[test]
-fn stream_metadata_clock_falls_back_to_server_frame_domain() {
-    let metadata = StreamMetadata::new(
-        Symbol::qualified("stream", "external-clock"),
-        StreamMedia::Diagnostic,
-        StreamDirection::Source,
-        Symbol::qualified("clock", "external"),
-        BufferPolicy::bounded(2).unwrap(),
-    );
-    let item = StreamItem::new(diagnostic_packet("external"));
-
-    let envelope = StreamEnvelope::from_item(&metadata, 1, &item).unwrap();
-
-    assert_eq!(envelope.clock_domain(), ClockDomain::ServerFrame);
-    assert_eq!(envelope.clock_domains(), &[ClockDomain::ServerFrame]);
-}
-
-#[test]
 fn stream_envelope_rejects_packet_media_that_conflicts_with_metadata() {
     let item = StreamItem::new(diagnostic_packet("mismatch"));
 
@@ -501,26 +265,6 @@ fn overflow_policies_behave_exactly() {
     errors.close_push().unwrap();
     assert_eq!(errors.stats().unwrap().rejected, 1);
     assert_eq!(errors.take_packets(4).unwrap(), vec![one, two]);
-}
-
-#[test]
-fn backpressure_outcomes_use_canonical_symbols() {
-    let outcomes = [
-        BackpressureOutcome::Accepted,
-        BackpressureOutcome::DroppedNewest,
-        BackpressureOutcome::DroppedOldest,
-        BackpressureOutcome::Blocked,
-        BackpressureOutcome::TimedOut,
-        BackpressureOutcome::Rejected,
-        BackpressureOutcome::Closed,
-    ];
-
-    for outcome in outcomes {
-        assert_eq!(
-            BackpressureOutcome::from_symbol(&outcome.symbol()).unwrap(),
-            outcome
-        );
-    }
 }
 
 #[test]

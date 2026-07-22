@@ -496,7 +496,7 @@ pub fn rank_note_node(
     ))
 }
 
-/// Returns the lexicographic sort key used to canonically order music nodes.
+/// Returns the lexicographic sort key for canonical music-node ordering.
 pub fn rank_music_lex_key(node: &RankNode) -> String {
     format!("{node:?}")
 }

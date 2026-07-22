@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
-//! PCM source and sink adapters for STREAM 6.
+//! PCM source and sink adapters for SIM stream packets.
 //!
 //! This crate keeps PCM I/O in library space. The in-memory source and sink
 //! are deterministic test backends; stream observation still goes through
@@ -8,6 +8,7 @@
 
 mod buffer;
 mod citizen;
+pub mod cookbook;
 mod io;
 mod spec;
 mod spine;
@@ -18,6 +19,7 @@ pub use buffer::{
     i16_samples_to_f32,
 };
 pub use citizen::{PcmFormatDescriptor, pcm_format_class_symbol};
+pub use cookbook::pcm_spec_demo;
 pub use io::{MemoryPcmSink, MemoryPcmSource, PcmPumpSummary, PcmSink, PcmSource, pump_pcm};
 pub use spec::{PcmSampleFormat, PcmSpec};
 pub use spine::{pcm_source_to_stream, stream_to_pcm_sink};

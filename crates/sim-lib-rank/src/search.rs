@@ -54,6 +54,7 @@ where
     N: RankNeighborhood + ?Sized,
     F: FnMut(&Nat, &RankNode) -> RankResult<RankSearchScore>,
 {
+    limits.check_nat(start, "rank.search.hill-climb")?;
     let mut current = score_state(codec, start, &mut score)?;
     let mut path = vec![current.clone()];
     loop {
@@ -95,6 +96,9 @@ where
     N: RankNeighborhood + ?Sized,
     F: FnMut(&Nat, &RankNode) -> RankResult<RankSearchScore>,
 {
+    limits.check_nat(start, "rank.search.beam")?;
+    limits.check_count(width, "rank.search.beam.width")?;
+    limits.check_count(depth, "rank.search.beam.depth")?;
     if width == 0 {
         return Ok(RankBeamSearchResult {
             best: score_state(codec, start, &mut score)?,

@@ -14,7 +14,7 @@ use crate::{RankNode, RankResult, RankVersion, nat::Nat};
 pub trait RankCodec: Send + Sync + std::fmt::Debug {
     /// Returns the stable symbol identifying this codec.
     fn id(&self) -> Symbol;
-    /// Returns the codec version, used to gate compatibility of stored ordinals.
+    /// Returns the codec version that gates compatibility of stored ordinals.
     fn version(&self) -> RankVersion;
     /// Returns the count of inhabitants, or `None` if the space is unbounded.
     fn count(&self) -> Option<Nat>;

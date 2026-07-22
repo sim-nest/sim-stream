@@ -7,9 +7,10 @@ use sim_kernel::{
     ContentId, DefaultFactory, Diagnostic, EventLedger, Expr, NoopEvalPolicy, Ref, Severity,
     Symbol, Tick,
 };
+use sim_lib_stream_clock::{Clock, ClockIndex};
 use sim_lib_stream_core::{
-    BufferOverflowPolicy, BufferPolicy, StreamDiagnostic, StreamDirection, StreamItem, StreamMedia,
-    StreamMetadata, StreamPacket, TransportProfile,
+    BufferOverflowPolicy, BufferPolicy, ClockDomain, StreamDiagnostic, StreamDirection, StreamItem,
+    StreamMedia, StreamMetadata, StreamPacket, TransportProfile,
 };
 
 use crate::{
@@ -18,6 +19,8 @@ use crate::{
     record_cassette_bang, record_ledger_slice, replay, replay_cassette, run_bang, seek,
     stream_cell, stream_window_data_kind, tap_diagnostics, window_by_count,
 };
+
+mod live_completion;
 
 fn metadata() -> StreamMetadata {
     StreamMetadata::new(
@@ -40,7 +43,7 @@ fn data_metadata() -> StreamMetadata {
 }
 
 fn clock_symbol() -> Symbol {
-    Symbol::qualified("clock", "test")
+    ClockDomain::Control.symbol()
 }
 
 #[test]
@@ -86,6 +89,33 @@ fn merge_interleaves_by_clock() {
         messages(merged.take_packets(8).unwrap()),
         vec!["left-1", "right-2", "left-3", "right-4"]
     );
+}
+
+#[test]
+fn merge_orders_clock_indexes_semantically() {
+    let left = Stream::pull(metadata(), vec![ticked_packet("left-10", 10)]);
+    let right = Stream::pull(metadata(), vec![ticked_packet("right-2", 2)]);
+
+    let merged = merge_by_clock(left, right, clock_symbol());
+
+    assert_eq!(
+        messages(merged.take_packets(8).unwrap()),
+        vec!["right-2", "left-10"]
+    );
+}
+
+#[test]
+fn merge_rejects_incomparable_clock_index_refs() {
+    let left = Stream::pull(
+        metadata(),
+        vec![content_ref_ticked_packet("content-ref", 1)],
+    );
+    let right = Stream::pull(metadata(), vec![ticked_packet("semantic", 2)]);
+
+    let merged = merge_by_clock(left, right, clock_symbol());
+
+    let err = merged.take_packets(8).unwrap_err();
+    assert!(format!("{err}").contains("incomparable index"));
 }
 
 #[test]
@@ -451,6 +481,21 @@ fn ticked_data_packet(kind: Symbol, payload: Expr, index: u8) -> StreamItem {
 }
 
 fn tick(index: u8) -> Tick {
+    let mut cx = sim_kernel::Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    test_clock()
+        .tick_for_index(&mut cx, ClockIndex::new(u64::from(index)))
+        .unwrap()
+}
+
+fn content_ref_ticked_packet(message: &str, index: u8) -> StreamItem {
+    StreamItem::with_ticks(
+        packet(message).packet().clone(),
+        vec![content_ref_tick(index)],
+    )
+    .unwrap()
+}
+
+fn content_ref_tick(index: u8) -> Tick {
     Tick::new(
         clock_symbol(),
         Ref::Content(ContentId::from_bytes(
@@ -458,6 +503,10 @@ fn tick(index: u8) -> Tick {
             [index; 32],
         )),
     )
+}
+
+fn test_clock() -> Clock {
+    Clock::frame_with_domain(clock_symbol(), ClockDomain::Control, 1).unwrap()
 }
 
 fn messages(items: Vec<StreamItem>) -> Vec<String> {

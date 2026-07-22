@@ -1,1 +1,1 @@
-(quote (topology graph doc-flow (node in verb/in) (node out verb/out) (wire in out)))
+(topology/tiny-graph-demo)

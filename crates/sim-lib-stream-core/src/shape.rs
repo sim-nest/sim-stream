@@ -156,7 +156,7 @@ fn shape_specs() -> Vec<ShapeSpec> {
             "StreamClock",
             vec![
                 "clock chart descriptor shared by frame and MIDI indexes",
-                "kernel stream events still carry KERNEL 6 Tick values",
+                "kernel stream events carry kernel Tick values",
             ],
             clock_shape(),
         ),

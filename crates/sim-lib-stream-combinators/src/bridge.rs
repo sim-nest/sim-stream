@@ -3,9 +3,10 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
-use sim_kernel::{Error, Ref, Result, Symbol};
+use sim_kernel::{Error, Result, Symbol};
 use sim_lib_stream_core::{
-    ClockDomain, DomainBridgeDescriptor, PcmPacket, StreamItem, StreamMetadata, StreamPacket,
+    ClockDomain, ClockTickIndex, DomainBridgeDescriptor, PcmPacket, StreamItem, StreamMetadata,
+    StreamPacket, tick_clock_index,
 };
 
 use crate::{Stream, StreamNode};
@@ -80,12 +81,10 @@ pub fn latency_comp_delay(source: Stream, frames: u64) -> Stream {
 
 /// Bridges an event stream into the control clock domain as a rate gate.
 ///
-/// The source clock domain is read from its metadata (defaulting to
-/// [`ClockDomain::Control`](sim_lib_stream_core::ClockDomain) when unknown) and
-/// validated into a gate descriptor; packets pass through unchanged.
+/// The source clock domain is read from its metadata and validated into a gate
+/// descriptor; packets pass through unchanged.
 pub fn event_rate_gate(source: Stream) -> Result<Stream> {
-    let input_domain =
-        ClockDomain::from_symbol(source.metadata().clock()).unwrap_or(ClockDomain::Control);
+    let input_domain = ClockDomain::for_stream_clock(source.metadata().clock())?;
     let descriptor = DomainBridgeDescriptor::event_rate_gate(input_domain)?;
     let metadata = source.metadata().clone();
     Ok(Stream::new(PassthroughBridgeNode {
@@ -137,12 +136,12 @@ struct JitterBufferNode {
 /// Online reordering window shared behind the node's mutex.
 #[derive(Default)]
 struct JitterBufferState {
-    /// Pending packets not yet emitted, each tagged with its arrival ordinal.
+    /// Buffered packets awaiting emission, each tagged with its arrival ordinal.
     window: Vec<(usize, StreamItem)>,
     /// Monotonic arrival counter; breaks ties in tick order stably.
     next_ordinal: usize,
-    /// Highest tick emitted so far; a lower incoming tick is late.
-    last_emitted: Option<Ref>,
+    /// Highest emitted tick; a lower newly accepted tick is late.
+    last_emitted: Option<ClockTickIndex>,
     /// Whether the upstream source has reached its terminal `done`.
     source_done: bool,
 }
@@ -163,7 +162,7 @@ impl StreamNode for JitterBufferNode {
             // Live source without enough ordering context yet: emit nothing.
             return Ok(None);
         }
-        Ok(self.pop_next(&mut state))
+        self.pop_next(&mut state)
     }
 
     fn is_done(&self) -> Result<bool> {
@@ -182,7 +181,7 @@ impl JitterBufferNode {
         let target = self.max_late_packets as usize + 1;
         while !state.source_done && state.window.len() < target {
             match self.source.next_packet()? {
-                Some(item) => self.accept_or_drop(state, item),
+                Some(item) => self.accept_or_drop(state, item)?,
                 None => {
                     if self.source.is_done()? {
                         state.source_done = true;
@@ -196,50 +195,53 @@ impl JitterBufferNode {
 
     /// Buffers `item`, or drops it (and counts it) when it is more than
     /// `max_late_packets` behind the highest accepted tick.
-    fn accept_or_drop(&self, state: &mut JitterBufferState, item: StreamItem) {
-        let key = tick_key(&item, &self.clock);
+    fn accept_or_drop(&self, state: &mut JitterBufferState, item: StreamItem) -> Result<()> {
+        let key = tick_key(&item, &self.clock)?;
         let late = match (&key, &state.last_emitted) {
             (Some(key), Some(last)) => key < last,
             _ => false,
         };
         if late {
             self.late_dropped.fetch_add(1, Ordering::Relaxed);
-            return;
+            return Ok(());
         }
         let ordinal = state.next_ordinal;
         state.next_ordinal = state.next_ordinal.saturating_add(1);
         state.window.push((ordinal, item));
+        Ok(())
     }
 
     /// Removes and returns the lowest-tick buffered packet, advancing the
     /// highest-emitted marker. Ties are broken by arrival order.
-    fn pop_next(&self, state: &mut JitterBufferState) -> Option<StreamItem> {
+    fn pop_next(&self, state: &mut JitterBufferState) -> Result<Option<StreamItem>> {
         if state.window.is_empty() {
-            return None;
+            return Ok(None);
         }
         let mut best = 0usize;
         for index in 1..state.window.len() {
-            if self.precedes(&state.window[index], &state.window[best]) {
+            if self.precedes(&state.window[index], &state.window[best])? {
                 best = index;
             }
         }
         let (_, item) = state.window.remove(best);
-        if let Some(key) = tick_key(&item, &self.clock) {
+        if let Some(key) = tick_key(&item, &self.clock)? {
             state.last_emitted = Some(key);
         }
-        Some(item)
+        Ok(Some(item))
     }
 
     /// Reports whether `left` should be emitted before `right`: lower tick
     /// first, ties (and keyless packets) by arrival order.
-    fn precedes(&self, left: &(usize, StreamItem), right: &(usize, StreamItem)) -> bool {
-        match (
-            tick_key(&left.1, &self.clock),
-            tick_key(&right.1, &self.clock),
-        ) {
-            (Some(left_key), Some(right_key)) => (left_key, left.0) < (right_key, right.0),
-            _ => left.0 < right.0,
-        }
+    fn precedes(&self, left: &(usize, StreamItem), right: &(usize, StreamItem)) -> Result<bool> {
+        Ok(
+            match (
+                tick_key(&left.1, &self.clock)?,
+                tick_key(&right.1, &self.clock)?,
+            ) {
+                (Some(left_key), Some(right_key)) => (left_key, left.0) < (right_key, right.0),
+                _ => left.0 < right.0,
+            },
+        )
     }
 }
 
@@ -293,6 +295,9 @@ fn resample_packet(packet: &PcmPacket, input_hz: u32, output_hz: u32) -> Result<
 }
 
 fn resampled_frame_count(input_frames: usize, input_hz: u32, output_hz: u32) -> usize {
+    if input_frames == 0 {
+        return 0;
+    }
     let frames = (input_frames as u64)
         .saturating_mul(u64::from(output_hz))
         .saturating_add(u64::from(input_hz / 2))
@@ -307,6 +312,9 @@ fn resample_interleaved<T: Copy>(
     copy: impl Fn(T) -> T,
 ) -> Vec<T> {
     let input_frames = samples.len() / channels;
+    if output_frames == 0 || input_frames == 0 {
+        return Vec::new();
+    }
     let mut out = Vec::with_capacity(output_frames * channels);
     for frame in 0..output_frames {
         let source_frame = frame.saturating_mul(input_frames) / output_frames;
@@ -318,9 +326,8 @@ fn resample_interleaved<T: Copy>(
     out
 }
 
-fn tick_key(item: &StreamItem, clock: &Symbol) -> Option<Ref> {
-    item.ticks()
-        .iter()
-        .find(|tick| &tick.clock == clock)
-        .map(|tick| tick.index.clone())
+fn tick_key(item: &StreamItem, clock: &Symbol) -> Result<Option<ClockTickIndex>> {
+    item.ticks().iter().try_fold(None, |found, tick| {
+        tick_clock_index(tick, clock).map(|parsed| found.or(parsed))
+    })
 }

@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use sim_kernel::{Cx, Result, Symbol};
 
-use crate::{EdgeId, Graph, NodeId, PortRef, validate::validate_graph};
+use crate::{EdgeId, Graph, NodeId, PortMode, PortRef, validate::validate_graph};
 
 /// Deterministic graph plan produced from validated topology data.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -47,6 +47,8 @@ pub struct CompiledNode {
     pub id: NodeId,
     /// Source node verb.
     pub verb: Symbol,
+    /// Whether the node declares any stream input or output port.
+    pub has_stream_ports: bool,
 }
 
 /// Compiled edge metadata with stable endpoint indexes.
@@ -66,6 +68,8 @@ pub struct CompiledEdge {
     pub to_node: usize,
     /// Routing priority copied from source data.
     pub priority: i64,
+    /// Per-edge visit cap copied from source data.
+    pub max_visits: Option<u32>,
 }
 
 /// Validates `graph` and lowers it to a [`CompiledGraph`] with stable node and
@@ -129,6 +133,11 @@ fn compile_nodes(graph: &Graph) -> Vec<CompiledNode> {
             source_index,
             id: node.id.clone(),
             verb: node.verb.clone(),
+            has_stream_ports: node
+                .inputs
+                .iter()
+                .chain(node.outputs.iter())
+                .any(|port| port.mode == PortMode::Stream),
         })
         .collect()
 }
@@ -152,6 +161,7 @@ fn compile_edges(
                 from_node: node_index_by_id[&edge.from.node],
                 to_node: node_index_by_id[&edge.to.node],
                 priority: edge.priority,
+                max_visits: edge.max_visits,
             }
         })
         .collect();

@@ -8,7 +8,7 @@ mod specs;
 pub use examples::topology_example_specs;
 pub use specs::{topology_function_specs, topology_verb_specs};
 
-/// Public topology function metadata used to generate Cards.
+/// Public topology function metadata for Card generation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TopologyFunctionSpec {
     /// The function symbol name.
@@ -23,7 +23,7 @@ pub struct TopologyFunctionSpec {
     pub result: &'static str,
 }
 
-/// Public topology node verb metadata used to generate Cards.
+/// Public topology node verb metadata for Card generation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TopologyVerbSpec {
     /// The verb name.

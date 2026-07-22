@@ -21,6 +21,10 @@ impl RankLimits {
     pub const DEFAULT_FUEL: u64 = 10_000;
     /// Default maximum permitted ordinal bit-width.
     pub const DEFAULT_MAX_BITS: u64 = 1_000_000;
+    /// Maximum public enumeration count allowed without `rank.heavy`.
+    pub const ORDINARY_ENUMERATION_LIMIT: usize = 1_024;
+    /// Maximum public enumeration count allowed even with `rank.heavy`.
+    pub const HEAVY_ENUMERATION_LIMIT: usize = Self::DEFAULT_FUEL as usize;
 
     /// Builds limits with explicit `fuel` and `max_bits` budgets.
     pub fn new(fuel: u64, max_bits: u64) -> Self {
@@ -50,6 +54,28 @@ impl RankLimits {
         }
         self.fuel -= needed;
         Ok(())
+    }
+
+    /// Checks that `count` fits within the remaining traversal budget.
+    ///
+    /// This is for caller-provided allocation or traversal counts that are not
+    /// natural ordinals but can still drive memory use.
+    pub fn check_count(&self, count: usize, limit: &'static str) -> RankResult<()> {
+        let needed = u64::try_from(count).unwrap_or(u64::MAX);
+        if needed > self.fuel {
+            return Err(RankError::LimitExceeded {
+                limit,
+                needed,
+                remaining: self.fuel,
+            });
+        }
+        Ok(())
+    }
+
+    /// Consumes fuel for a caller-provided allocation or traversal count.
+    pub fn consume_count(&mut self, count: usize, limit: &'static str) -> RankResult<()> {
+        let needed = u64::try_from(count).unwrap_or(u64::MAX);
+        self.consume(needed, limit)
     }
 
     /// Checks that `value`'s bit-width is within `max_bits`.

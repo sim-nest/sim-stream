@@ -1,0 +1,81 @@
+schema = "sim.features"
+
+[enforcement.audience]
+code = "strict"
+framework = "strict"
+
+[enforcement.specimen]
+user = "strict"
+framework = "strict"
+code = "advisory"
+
+[enforcement.route]
+major_entrypoints = "advisory"
+frameworks = "advisory"
+
+[[feature]]
+id = "feature/sim-stream/generated-docs"
+title = "Repository documentation surface"
+summary = "Publish generated package, card, rustdoc, and index facts for the stream and topology crates."
+owner = "crate/xtask"
+audiences = ["code"]
+guidance = "Use this row when checking the generated documentation and index lane for stream helpers."
+claims_anchors = [
+  "anchor/cli/xtask",
+  "anchor/crate/xtask",
+  "anchor/doc/generated/card-index",
+  "anchor/doc/generated/feature-map",
+  "anchor/doc/generated/provenance",
+  "anchor/doc/generated/repo-contract",
+  "anchor/doc/generated/rustdoc-index",
+  "anchor/doc/generated/sim-index-fragment",
+  "anchor/repo/sim-stream",
+]
+claims_surfaces = [
+  "cli/xtask",
+  "docs/sim-stream/generated",
+]
+
+[[feature]]
+id = "feature/sim-stream/stream-protocol-helpers"
+title = "Network and stream protocol helpers"
+summary = "Provide rank, topology, stream core, device, wrist, and XR helpers as loadable stream libraries."
+owner = "crate/sim-lib-stream-core"
+audiences = ["code", "framework"]
+guidance = "Use this row when a framework needs reusable stream metadata, device streams, or topology helpers."
+claims_anchors = [
+  "anchor/crate/sim-lib-rank",
+  "anchor/crate/sim-lib-stream-audio",
+  "anchor/crate/sim-lib-stream-clock",
+  "anchor/crate/sim-lib-stream-combinators",
+  "anchor/crate/sim-lib-stream-core",
+  "anchor/crate/sim-lib-stream-device",
+  "anchor/crate/sim-lib-stream-prelude",
+  "anchor/crate/sim-lib-stream-wrist",
+  "anchor/crate/sim-lib-stream-xr",
+  "anchor/crate/sim-lib-topology",
+  "anchor/export/sim-lib-stream-core/packet/pcm.rs",
+  "anchor/export/sim-lib-stream-core/shape/structural.rs",
+  "anchor/runtime-lib/sim-lib-rank/rank-lib",
+  "anchor/runtime-lib/sim-lib-stream-core/stream-core-shapes-lib",
+  "anchor/runtime-lib/sim-lib-stream-device/device-stream-base-lib",
+  "anchor/runtime-lib/sim-lib-stream-prelude/stream-prelude-lib",
+  "anchor/runtime-lib/sim-lib-stream-wrist/wrist-stream-lib",
+  "anchor/runtime-lib/sim-lib-stream-xr/xr-stream-lib",
+  "anchor/runtime-lib/sim-lib-topology/topology-lib",
+]
+claims_surfaces = [
+  "site/sim-lib-topology",
+]
+claims_specimens = [
+  "spec-test/sim-stream/crates/sim-lib-stream-core/src/read_construct",
+]
+
+[[route]]
+id = "route/add-stream-protocol-helper"
+task = "Add a stream protocol helper"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-stream/stream-protocol-helpers", why = "The stream row owns reusable stream, rank, topology, and device helpers." },
+  { specimen = "spec-test/sim-stream/crates/sim-lib-stream-core/src/read_construct", why = "The read-construct test checks stream metadata projection." },
+]

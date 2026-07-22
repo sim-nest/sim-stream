@@ -102,6 +102,28 @@ fn f32_buffers_round_trip_through_pcm_packets() {
 }
 
 #[test]
+fn zero_frame_buffers_round_trip_through_pcm_packets() {
+    let spec = spec();
+    let buffer = PcmBuffer::i16(spec, 0, Vec::new()).unwrap();
+
+    let packet = buffer.to_packet().unwrap();
+    let decoded = PcmBuffer::from_packet(spec, &packet).unwrap();
+
+    assert_eq!(packet.frames(), 0);
+    assert!(packet.samples_i16().is_empty());
+    assert_eq!(decoded, buffer);
+}
+
+#[test]
+fn pcm_buffer_edges_fail_closed() {
+    let err = PcmBuffer::i16(spec(), 1, Vec::new()).unwrap_err();
+    assert!(format!("{err}").contains("does not match"));
+
+    let err = PcmBuffer::f32(f32_spec(), 1, vec![0.0, f32::INFINITY]).unwrap_err();
+    assert!(format!("{err}").contains("must be finite"));
+}
+
+#[test]
 fn citizen_pcm_format_descriptor_round_trips_and_fails_closed() {
     let descriptor = PcmFormatDescriptor::new(PcmSpec::f32(2, 96_000).unwrap());
     let spec = descriptor.spec().unwrap();

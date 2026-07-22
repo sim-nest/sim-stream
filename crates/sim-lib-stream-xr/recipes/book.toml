@@ -1,0 +1,5 @@
+book = "stream-xr"
+title = "Stream XR"
+summary = "XR glasses sample descriptors and modeled sources."
+order = 122
+chapters = ["01-basics"]

@@ -139,7 +139,7 @@ fn validate_rejects_bad_capability_symbol() {
     let mut graph = valid_call_graph();
     graph.capabilities.push(Symbol::new(":net"));
 
-    assert_validate_error(&graph, &["capabilities", "invalid capability symbol"]);
+    assert_validate_error(&graph, &["capabilities", "capability parse error"]);
 }
 
 fn assert_validate_error(graph: &Graph, fragments: &[&str]) {

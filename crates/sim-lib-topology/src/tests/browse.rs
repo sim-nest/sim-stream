@@ -1,7 +1,8 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-use sim_kernel::{Cx, DefaultFactory, EagerPolicy, Expr, NumberLiteral, Symbol};
+use sim_kernel::{Cx, DefaultFactory, EagerPolicy, Expr, Symbol};
+use sim_value::build::uint;
 
 use crate::{
     browse::{
@@ -277,10 +278,7 @@ fn example_name_from_package(package: &str) -> String {
 }
 
 fn number_expr(value: u64) -> Expr {
-    Expr::Number(NumberLiteral {
-        domain: Symbol::new("i64"),
-        canonical: value.to_string(),
-    })
+    uint(value)
 }
 
 fn test_cx() -> Cx {

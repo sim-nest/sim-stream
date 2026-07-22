@@ -1,5 +1,82 @@
 {
-  "schema": "sim.rustdoc-index.v1",
-  "repo": "sim-stream",
-  "target_doc": "target/doc/"
+  "generator": "xtask repo-contract v1",
+  "packages": [
+    {
+      "crate_name": "sim_lib_rank",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-rank/Cargo.toml",
+      "package": "sim-lib-rank",
+      "summary": "Coordinate, codec, order, search, and optional domain rank spaces."
+    },
+    {
+      "crate_name": "sim_lib_stream_audio",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-stream-audio/Cargo.toml",
+      "package": "sim-lib-stream-audio",
+      "summary": "PCM source and sink adapters for SIM stream packets."
+    },
+    {
+      "crate_name": "sim_lib_stream_clock",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-stream-clock/Cargo.toml",
+      "package": "sim-lib-stream-clock",
+      "summary": "Clock charts and tick conversion helpers for SIM streams."
+    },
+    {
+      "crate_name": "sim_lib_stream_combinators",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-stream-combinators/Cargo.toml",
+      "package": "sim-lib-stream-combinators",
+      "summary": "Lazy in-memory combinators for SIM stream packets."
+    },
+    {
+      "crate_name": "sim_lib_stream_core",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-stream-core/Cargo.toml",
+      "package": "sim-lib-stream-core",
+      "summary": "Core stream envelopes, metadata, packets, and buffer values."
+    },
+    {
+      "crate_name": "sim_lib_stream_device",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-stream-device/Cargo.toml",
+      "package": "sim-lib-stream-device",
+      "summary": "Device sample contracts and deterministic modeled sources for SIM streams."
+    },
+    {
+      "crate_name": "sim_lib_stream_prelude",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-stream-prelude/Cargo.toml",
+      "package": "sim-lib-stream-prelude",
+      "summary": "Lisp-facing prelude for SIM memory streams."
+    },
+    {
+      "crate_name": "sim_lib_stream_wrist",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-stream-wrist/Cargo.toml",
+      "package": "sim-lib-stream-wrist",
+      "summary": "Worn-device sample contracts and deterministic modeled wrist sources."
+    },
+    {
+      "crate_name": "sim_lib_stream_xr",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-stream-xr/Cargo.toml",
+      "package": "sim-lib-stream-xr",
+      "summary": "XR glasses sample contracts and deterministic modeled sources."
+    },
+    {
+      "crate_name": "sim_lib_topology",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-topology/Cargo.toml",
+      "package": "sim-lib-topology",
+      "summary": "Data-driven topology engine."
+    },
+    {
+      "crate_name": "xtask",
+      "group": "workspace",
+      "manifest": "xtask/Cargo.toml",
+      "package": "xtask",
+      "summary": "Repository maintenance tasks for sim-stream."
+    }
+  ]
 }

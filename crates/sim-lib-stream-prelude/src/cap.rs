@@ -1,27 +1,15 @@
 use sim_kernel::CapabilityName;
+pub use sim_lib_stream_core::{
+    stream_cancel_capability, stream_open_capability, stream_push_capability,
+    stream_read_capability, stream_stats_capability,
+};
 
-/// Returns the `stream.open` capability name gating source/sink construction.
-///
-/// The prelude's `stream/open` function requires this capability before it
-/// builds a memory stream handle.
-pub fn stream_open_capability() -> CapabilityName {
-    CapabilityName::new("stream.open")
-}
-
-/// Returns the `stream.read` capability name gating packet reads.
-///
-/// Functions that pull packets (for example `stream/next!`, `stream/run!`, and
-/// the combinator stages) require this capability.
-pub fn stream_read_capability() -> CapabilityName {
-    CapabilityName::new("stream.read")
-}
-
-/// Returns the `stream.write` capability name gating sink writes.
+/// Returns the canonical `stream.push` capability name gating sink writes.
 ///
 /// Functions that push packets into a sink (for example `stream/write!` and a
 /// pipeline that runs into a sink) require this capability.
 pub fn stream_write_capability() -> CapabilityName {
-    CapabilityName::new("stream.write")
+    stream_push_capability()
 }
 
 /// Returns the `stream.control` capability name gating live control cells.

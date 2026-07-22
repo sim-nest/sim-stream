@@ -45,6 +45,7 @@ pub mod browse;
 pub mod capability;
 mod citizen;
 pub mod compile;
+pub mod cookbook;
 pub mod diagram;
 pub mod error;
 pub mod instrument;
@@ -53,12 +54,14 @@ pub mod package;
 pub mod parse;
 pub mod patch;
 pub mod place;
+mod place_latency;
 mod record;
 pub mod reflect;
 pub mod registry;
 pub mod replay;
 pub mod run;
 mod run_cells;
+mod run_contract;
 mod run_nonlinear;
 mod run_predicate;
 pub mod site;
@@ -80,6 +83,7 @@ pub use citizen::{
     topology_edge_class_symbol, topology_node_class_symbol, topology_package_class_symbol,
 };
 pub use compile::{CompiledGraph, compile_graph};
+pub use cookbook::{embodied_intelligence_trace_demo, tiny_graph_demo};
 pub use instrument::{
     InstrumentTopologyAdapter, InstrumentTopologyCord, InstrumentTopologyJack,
     InstrumentTopologyModule, InstrumentTopologySpec,
@@ -88,7 +92,7 @@ pub use model::{
     Budget, BudgetExhausted, Cell, Edge, EdgeId, Graph, GraphTest, Node, NodeId, Port, PortMode,
     PortRef, Scheduler, SchedulerMode,
 };
-pub use package::{TopologyPackage, load_package_file, parse_package};
+pub use package::{TopologyPackage, TopologyPackageSource, load_package_file, parse_package};
 pub use parse::{graph_from_value, parse_graph};
 pub use patch::{
     PatchOp, TopologyPatch, apply_topology_patch, apply_topology_patch_ops, patched_connection,
@@ -105,7 +109,8 @@ pub use reflect::{
 pub use registry::{
     SharedTopologyRegistry, TopologyEntry, TopologyLib, TopologyRegistry, install_topology_lib,
     manifest_name as topology_manifest_name, topology_def, topology_exports, topology_get,
-    topology_list, topology_load_file, topology_reload, topology_remove,
+    topology_list, topology_load_file, topology_load_source, topology_reload, topology_remove,
+    topology_site_symbol,
 };
 pub use replay::{TopologyCounterfactual, counterfactual_replay, replay_report};
 pub use site::{TopologyConnection, connection_from_graph};

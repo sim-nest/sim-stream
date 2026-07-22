@@ -104,6 +104,26 @@ pub(super) fn data_source(cx: &mut Cx, id: &str, packets: Vec<StreamPacket>) -> 
         .unwrap()
 }
 
+pub(super) fn live_data_source(cx: &mut Cx, id: &str) -> (Value, Arc<StreamValue>) {
+    let metadata = StreamMetadata::new(
+        Symbol::new(id),
+        StreamMedia::Data,
+        StreamDirection::Source,
+        Symbol::qualified("clock", "data"),
+        BufferPolicy::bounded(8).unwrap(),
+    );
+    let stream = Arc::new(StreamValue::push(metadata.clone()));
+    stream.publish_claims(cx, metadata.subject_ref()).unwrap();
+    let handle = cx
+        .factory()
+        .opaque(Arc::new(StreamHandle::source(
+            metadata,
+            Arc::clone(&stream),
+        )))
+        .unwrap();
+    (handle, stream)
+}
+
 pub(super) struct MarkFn;
 
 impl Callable for MarkFn {

@@ -1,0 +1,5 @@
+book = "stream-wrist"
+title = "Stream Wrist"
+summary = "Worn-device sample descriptors and modeled wrist sources."
+order = 121
+chapters = ["01-basics"]

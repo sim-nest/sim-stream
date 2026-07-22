@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
-//! RANK 6 coordinate, codec, order, search, and optional domain spaces.
+//! Coordinate, codec, order, search, and optional domain rank spaces.
 pub mod builder;
 pub mod cap;
 pub mod claims;
@@ -15,6 +15,8 @@ mod codec_group_product;
 mod codec_integer;
 pub mod codec_primitive;
 pub mod context;
+pub mod cookbook;
+mod cookbook_runtime;
 pub mod derive_support;
 pub mod error;
 #[cfg(feature = "rank-expr")]
@@ -46,6 +48,7 @@ pub mod retrieve;
 #[cfg(feature = "rank-scatter")]
 pub mod scatter;
 pub mod search;
+pub mod shape;
 pub mod space;
 pub mod tree;
 mod tree_collection;
@@ -73,6 +76,7 @@ pub use codec_primitive::RankPrimitiveCodec;
 pub use context::{
     RankContext, default_order_for_context, order_symbol, standard_default_contexts,
 };
+pub use cookbook::{rank_retrieve_demo, recommendation_ranking_demo, space_coordinate_demo};
 pub use derive_support::{
     RankChild, RankDescribe, RankDescribeContext, RankEnumDescriptor, RankRecursive, derived_symbol,
 };
@@ -113,12 +117,14 @@ pub use order_score::{
 };
 pub use registry::RankSpaceRegistry;
 pub use retrieve::{
-    EmbeddingStore, RetrievedNeighbor, retrieve, retrieve_ids, retrieve_rank_neighborhood,
+    EmbeddingIndex, EmbeddingStore, RetrievedNeighbor, retrieve, retrieve_ids,
+    retrieve_ids_limited, retrieve_limited, retrieve_rank_neighborhood,
 };
 pub use search::{
     RankBeamSearchResult, RankSearchResult, RankSearchScore, RankSearchState, beam_search,
     hill_climb,
 };
+pub use shape::RankNodeShape;
 pub use space::{
     RankCoordinateValue, RankNodeValue, RankSpace, coordinate_from_value, rank_coordinate_value,
     rank_node_from_value, rank_node_value,

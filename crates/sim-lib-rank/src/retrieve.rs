@@ -8,6 +8,30 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{Nat, RankCodec, RankError, RankNeighborhood, RankResult, limits::RankLimits};
 
+/// Read-only embedding index used by rank retrieval.
+///
+/// `EmbeddingStore` is the in-memory implementation. Persistent integrations
+/// implement this trait over their Table/Dir-backed index without changing the
+/// retrieval algorithm.
+pub trait EmbeddingIndex {
+    /// Returns the number of indexed embeddings.
+    fn len(&self) -> usize;
+
+    /// Returns `true` when no embeddings are indexed.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Returns the fixed vector dimension, or `None` while the index is empty.
+    fn dimensions(&self) -> Option<usize>;
+
+    /// Returns the embedding stored under `id`, if present.
+    fn embedding(&self, id: &str) -> Option<&[f32]>;
+
+    /// Iterates ids in deterministic order.
+    fn ids(&self) -> Box<dyn Iterator<Item = &str> + '_>;
+}
+
 /// Keyed collection of fixed-dimension embedding vectors to retrieve against.
 ///
 /// Every stored vector shares the same dimension (fixed by the first insert)
@@ -113,6 +137,24 @@ impl EmbeddingStore {
     }
 }
 
+impl EmbeddingIndex for EmbeddingStore {
+    fn len(&self) -> usize {
+        EmbeddingStore::len(self)
+    }
+
+    fn dimensions(&self) -> Option<usize> {
+        EmbeddingStore::dimensions(self)
+    }
+
+    fn embedding(&self, id: &str) -> Option<&[f32]> {
+        EmbeddingStore::embedding(self, id)
+    }
+
+    fn ids(&self) -> Box<dyn Iterator<Item = &str> + '_> {
+        Box::new(self.entries.keys().map(String::as_str))
+    }
+}
+
 impl Default for EmbeddingStore {
     fn default() -> Self {
         Self::new()
@@ -133,11 +175,22 @@ pub struct RetrievedNeighbor {
 /// Scores every stored embedding by cosine similarity and returns the highest
 /// `k`, ordered by descending score with ids breaking ties.
 pub fn retrieve(
-    store: &EmbeddingStore,
+    store: &impl EmbeddingIndex,
     query: &[f32],
     k: usize,
 ) -> RankResult<Vec<RetrievedNeighbor>> {
-    retrieve_ids(store, query, store.iter().map(|(id, _embedding)| id), k)
+    let mut limits = RankLimits::default();
+    retrieve_limited(store, query, k, &mut limits)
+}
+
+/// Retrieves the top-k embeddings with an explicit traversal budget.
+pub fn retrieve_limited(
+    store: &impl EmbeddingIndex,
+    query: &[f32],
+    k: usize,
+    limits: &mut RankLimits,
+) -> RankResult<Vec<RetrievedNeighbor>> {
+    retrieve_ids_limited(store, query, store.ids(), k, limits)
 }
 
 /// Retrieves top-k embeddings restricted to a rank neighborhood of `ordinal`.
@@ -146,7 +199,7 @@ pub fn retrieve(
 /// itself), maps each to its string id, and ranks only those embeddings by
 /// cosine similarity to `query`.
 pub fn retrieve_rank_neighborhood<N>(
-    store: &EmbeddingStore,
+    store: &impl EmbeddingIndex,
     query: &[f32],
     neighborhood: &N,
     codec: &dyn RankCodec,
@@ -159,11 +212,12 @@ where
 {
     let mut ordinals = neighborhood.neighbors(codec, ordinal, limits)?;
     ordinals.push(ordinal.clone());
-    retrieve_ids(
+    retrieve_ids_limited(
         store,
         query,
         ordinals.iter().map(|ordinal| ordinal.to_string()),
         k,
+        limits,
     )
 }
 
@@ -173,7 +227,7 @@ where
 /// similarity, skipping duplicates and unknown ids, then returns the best `k`
 /// by descending score with ids breaking ties.
 pub fn retrieve_ids<I, S>(
-    store: &EmbeddingStore,
+    store: &impl EmbeddingIndex,
     query: &[f32],
     ids: I,
     k: usize,
@@ -182,10 +236,28 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
 {
+    let mut limits = RankLimits::default();
+    retrieve_ids_limited(store, query, ids, k, &mut limits)
+}
+
+/// Retrieves top-k embeddings with an explicit traversal budget.
+pub fn retrieve_ids_limited<I, S>(
+    store: &impl EmbeddingIndex,
+    query: &[f32],
+    ids: I,
+    k: usize,
+    limits: &mut RankLimits,
+) -> RankResult<Vec<RetrievedNeighbor>>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
     validate_query(store, query)?;
+    limits.check_count(k, "rank.retrieve.k")?;
     let mut seen = BTreeSet::new();
     let mut neighbors = Vec::new();
     for id in ids {
+        limits.consume(1, "rank.retrieve.candidate")?;
         let id = id.as_ref();
         if !seen.insert(id.to_owned()) {
             continue;
@@ -210,9 +282,9 @@ fn compare_neighbors(left: &RetrievedNeighbor, right: &RetrievedNeighbor) -> std
         .then_with(|| left.id.cmp(&right.id))
 }
 
-fn validate_query(store: &EmbeddingStore, query: &[f32]) -> RankResult<()> {
+fn validate_query(store: &impl EmbeddingIndex, query: &[f32]) -> RankResult<()> {
     validate_embedding(query, "query")?;
-    if let Some(dimensions) = store.dimensions
+    if let Some(dimensions) = store.dimensions()
         && dimensions != query.len()
     {
         return Err(invalid_retrieve(format!(

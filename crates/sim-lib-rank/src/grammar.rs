@@ -10,6 +10,7 @@ use sim_kernel::{ContentId, Datum, NumberLiteral, Result as KernelResult, Symbol
 use crate::{
     error::{RankError, RankResult},
     nat::bigint_number_domain,
+    shape::RankNodeShape,
 };
 
 /// Recursive description of a rankable space.
@@ -265,6 +266,11 @@ impl RankGrammar {
             Self::Map { .. } => "map",
             Self::Guard { .. } => "guard",
         }
+    }
+
+    /// Wraps this grammar as a kernel Shape over rank-node values.
+    pub fn node_shape(&self, symbol: Symbol) -> RankNodeShape {
+        RankNodeShape::new(symbol, self.clone())
     }
 
     /// Checks that recursion under `id` is productive and fully resolved.

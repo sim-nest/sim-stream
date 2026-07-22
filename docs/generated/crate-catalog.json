@@ -1,9 +1,9 @@
 {
   "generator": "xtask crate-catalog v1",
-  "package_count": 8,
+  "package_count": 11,
   "packages": [
     {
-      "description": "RANK 6 coordinate, codec, order, search, and optional domain spaces.",
+      "description": "Coordinate, codec, order, search, and optional domain rank spaces.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-rank/Cargo.toml",
       "name": "sim-lib-rank",
@@ -16,7 +16,7 @@
       ]
     },
     {
-      "description": "PCM source and sink adapters for STREAM 6.",
+      "description": "PCM source and sink adapters for SIM stream packets.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-stream-audio/Cargo.toml",
       "name": "sim-lib-stream-audio",
@@ -29,7 +29,7 @@
       ]
     },
     {
-      "description": "Clock charts and tick conversion helpers for STREAM 6.",
+      "description": "Clock charts and tick conversion helpers for SIM streams.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-stream-clock/Cargo.toml",
       "name": "sim-lib-stream-clock",
@@ -42,7 +42,7 @@
       ]
     },
     {
-      "description": "Lazy in-memory stream combinators for STREAM 6.",
+      "description": "Lazy in-memory combinators for SIM stream packets.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-stream-combinators/Cargo.toml",
       "name": "sim-lib-stream-combinators",
@@ -68,13 +68,52 @@
       ]
     },
     {
-      "description": "Lisp-facing STREAM 6 prelude for memory streams.",
+      "description": "Hardware-free device sample contracts for SIM stream sources.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-stream-device/Cargo.toml",
+      "name": "sim-lib-stream-device",
+      "publish": "true",
+      "readme": "crates/sim-lib-stream-device/README.md",
+      "root": "crates/sim-lib-stream-device",
+      "target_kinds": [
+        "custom-build",
+        "lib"
+      ]
+    },
+    {
+      "description": "Lisp-facing prelude for SIM memory streams.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-stream-prelude/Cargo.toml",
       "name": "sim-lib-stream-prelude",
       "publish": "true",
       "readme": "crates/sim-lib-stream-prelude/README.md",
       "root": "crates/sim-lib-stream-prelude",
+      "target_kinds": [
+        "custom-build",
+        "lib"
+      ]
+    },
+    {
+      "description": "Worn-device stream contracts and deterministic modeled wrist sources.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-stream-wrist/Cargo.toml",
+      "name": "sim-lib-stream-wrist",
+      "publish": "true",
+      "readme": "crates/sim-lib-stream-wrist/README.md",
+      "root": "crates/sim-lib-stream-wrist",
+      "target_kinds": [
+        "custom-build",
+        "lib"
+      ]
+    },
+    {
+      "description": "XR glasses stream contracts and deterministic modeled sources.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-stream-xr/Cargo.toml",
+      "name": "sim-lib-stream-xr",
+      "publish": "true",
+      "readme": "crates/sim-lib-stream-xr/README.md",
+      "root": "crates/sim-lib-stream-xr",
       "target_kinds": [
         "custom-build",
         "lib"
@@ -94,7 +133,7 @@
       ]
     },
     {
-      "description": "SIM workspace package for xtask.",
+      "description": "Repository maintenance tasks for sim-stream.",
       "generated_readme": true,
       "manifest": "xtask/Cargo.toml",
       "name": "xtask",

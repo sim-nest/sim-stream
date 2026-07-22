@@ -6,8 +6,8 @@
 
 use sim_kernel::{Expr, Symbol};
 use sim_lib_stream_core::{
-    BufferPolicy, StreamDirection, StreamItem, StreamMedia, StreamMetadata, StreamPacket,
-    StreamValue,
+    BufferPolicy, ClockDomain, StreamDirection, StreamItem, StreamMedia, StreamMetadata,
+    StreamPacket, StreamValue,
 };
 
 use crate::{Nat, order_score::RankFrontier};
@@ -59,7 +59,7 @@ pub(crate) fn rank_data_metadata(id: Symbol, capacity: usize) -> StreamMetadata 
         Symbol::new(id.to_string()),
         StreamMedia::Data,
         StreamDirection::Source,
-        Symbol::qualified("clock", "rank"),
+        ClockDomain::ServerFrame.symbol(),
         BufferPolicy::bounded(capacity.max(1)).expect("rank stream buffer capacity is nonzero"),
     )
 }

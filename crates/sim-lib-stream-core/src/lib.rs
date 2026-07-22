@@ -11,6 +11,7 @@ pub mod bridge;
 pub mod buffer;
 pub mod cassette;
 mod citizen;
+pub mod cookbook;
 pub mod dev;
 pub mod envelope;
 pub mod inspector;
@@ -21,6 +22,7 @@ pub mod security;
 pub mod shape;
 pub mod site;
 pub mod spine;
+pub mod time;
 
 /// Cookbook recipes for this crate, embedded at build time.
 ///
@@ -38,6 +40,7 @@ pub use cassette::{
     stream_cassette_golden_root,
 };
 pub use citizen::{StreamPacketDescriptor, stream_packet_class_symbol};
+pub use cookbook::metadata_descriptor_demo;
 pub use dev::{
     DevCassette, DevEvent, DevFaultReport, MediaDescriptor, dev_dropped_chunks_diagnostic,
     dev_event_media, dev_event_metadata,
@@ -86,6 +89,10 @@ pub use spine::{
     stream_metadata_symbol, stream_next_bang, stream_next_symbol, stream_peek_bang,
     stream_peek_symbol, stream_run_bang, stream_run_symbol, stream_stats, stream_stats_symbol,
     stream_take, stream_take_symbol,
+};
+pub use time::{
+    CLOCK_INDEX_REF_NAMESPACE, ClockTickIndex, clock_index_ref, clock_index_symbol,
+    tick_clock_index,
 };
 
 #[cfg(test)]

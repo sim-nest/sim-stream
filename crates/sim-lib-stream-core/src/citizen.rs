@@ -42,7 +42,7 @@ impl StreamPacketDescriptor {
 
     /// Decodes and returns the wrapped [`StreamPacket`].
     ///
-    /// Returns an error if the stored expression no longer decodes to a packet.
+    /// Returns an error if the stored expression does not decode to a packet.
     pub fn packet(&self) -> Result<StreamPacket> {
         StreamPacket::try_from(self.packet.clone())
     }

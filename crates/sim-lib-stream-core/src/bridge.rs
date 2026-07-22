@@ -49,8 +49,8 @@ impl DomainBridgeKind {
         Symbol::qualified("stream/bridge", self.name())
     }
 
-    /// Returns the `stream/bridge-diagnostic/<name>` symbol used to tag this
-    /// bridge kind's diagnostics.
+    /// Returns the `stream/bridge-diagnostic/<name>` symbol for this bridge
+    /// kind's diagnostics.
     pub fn diagnostic_symbol(self) -> Symbol {
         Symbol::qualified("stream/bridge-diagnostic", self.name())
     }

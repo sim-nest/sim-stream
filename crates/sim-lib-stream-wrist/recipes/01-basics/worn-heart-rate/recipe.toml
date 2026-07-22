@@ -1,0 +1,8 @@
+id = "worn-heart-rate"
+title = "Worn heart-rate descriptor"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 10
+tags = ["stream", "wrist", "worn", "sample", "sandbox-descriptor"]
+requires = ["stream-wrist", "codec/lisp"]

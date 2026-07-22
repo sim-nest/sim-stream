@@ -62,6 +62,14 @@ draw on. Every library installs into a runtime as a capability-gated
 - `sim-lib-stream-audio` -- PCM source and sink adapters. The in-memory source
   and sink are deterministic backends; stream observation still flows through
   stream-core packets and spines.
+- `sim-lib-stream-device` -- hardware-free device sample contracts and
+  deterministic modeled sources. Device capabilities and concrete sensor
+  samples travel as ordinary stream data with strict kind tags and monotone
+  sequence numbers.
+- `sim-lib-stream-wrist` -- worn-device sample contracts for heart-rate,
+  motion, location, battery, connection, and wrist input streams. Modeled
+  sources emit deterministic watch-style samples, and microphone events carry
+  raw framed audio rather than transcripts or voice intent.
 - `sim-lib-stream-prelude` -- the umbrella library that composes core, audio,
   and combinators into a single host-registered library. It installs
   capability-gated functions for opening deterministic memory MIDI and PCM
@@ -89,11 +97,18 @@ sources, sinks, pipelines, and combinator stages share a single packet model.
 
 ## Validation
 
-These commands run in the constellation workspace; only `sim-kernel` builds from a lone clone today (see `DEVELOPING.md` in `sim-sdk`). A single-repo build lands with the first crates.io publish.
+This repo is self-contained and validates against published SIM crates plus its
+own workspace members.
 
 ```bash
-cargo fmt --check && cargo test --workspace && cargo clippy --workspace -- -D warnings && cargo doc --workspace --no-deps
+cargo fmt --all --check
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
+cargo doc --workspace --no-deps
+cargo clippy --workspace --all-features --all-targets -- -D warnings
+cargo test --workspace --all-features
 cargo run -p xtask -- simdoc --check
+cargo run -p xtask -- check-file-sizes
 ```
 
 ## Documentation Lanes

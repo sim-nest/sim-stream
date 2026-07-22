@@ -1,4 +1,4 @@
-use sim_kernel::{Datum, DatumStore, NumberLiteral, Ref, Symbol};
+use sim_kernel::{Datum, DatumStore, NumberLiteral, Ref, Shape, Symbol};
 
 use crate::{
     Nat, RankBuilder, RankError, RankGrammar, RankLimits, RankNode, RankVersion,
@@ -215,6 +215,30 @@ fn toy_enum_grammar_builds() {
             index: Nat::from(1_u64)
         }
     );
+}
+
+#[test]
+fn rank_grammar_node_shape_accepts_matching_nodes() {
+    let grammar = RankBuilder::product(Symbol::qualified("rank-test", "bool-pair"))
+        .field(Symbol::new("left"), RankBuilder::bool())
+        .field(Symbol::new("right"), RankBuilder::bool())
+        .build()
+        .unwrap();
+    let shape = grammar.node_shape(Symbol::qualified("rank-test", "bool-pair-shape"));
+    let matching_node = RankNode::Product(vec![RankNode::Bool(true), RankNode::Bool(false)]);
+    let mut cx = cx();
+
+    let matching_value = crate::rank_node_value(&mut cx, matching_node.clone()).unwrap();
+    assert!(shape.check_value(&mut cx, matching_value).unwrap().accepted);
+
+    let matching_expr = crate::lisp::rank_node_constructor_args(&matching_node)
+        .into_iter()
+        .next()
+        .unwrap();
+    assert!(shape.check_expr(&mut cx, &matching_expr).unwrap().accepted);
+
+    let wrong_value = crate::rank_node_value(&mut cx, RankNode::Bool(true)).unwrap();
+    assert!(!shape.check_value(&mut cx, wrong_value).unwrap().accepted);
 }
 
 #[test]

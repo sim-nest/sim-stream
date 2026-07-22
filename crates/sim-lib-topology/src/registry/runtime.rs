@@ -9,7 +9,10 @@ use sim_kernel::{
 mod calls;
 mod reports;
 
-use crate::browse::{topology_browse_symbols, topology_browse_value};
+use crate::{
+    browse::{topology_browse_symbols, topology_browse_value},
+    site::TopologySiteFactory,
+};
 use calls::topology_functions;
 
 /// Shared registry handle used by the installed topology function surface.
@@ -68,6 +71,10 @@ impl Lib for TopologyLib {
         for symbol in topology_browse_symbols() {
             linker.value(symbol.clone(), topology_browse_value(cx, symbol)?)?;
         }
+        let site = cx
+            .factory()
+            .opaque(Arc::new(TopologySiteFactory::new(topology_site_symbol())))?;
+        linker.site_value(topology_site_symbol(), site)?;
         Ok(())
     }
 }
@@ -91,10 +98,19 @@ pub fn topology_exports() -> Vec<Export> {
             .into_iter()
             .map(|symbol| Export::Value { symbol }),
     );
+    exports.push(Export::Site {
+        symbol: topology_site_symbol(),
+        runtime_id: None,
+    });
     exports
 }
 
 /// Manifest id for the topology library.
 pub fn manifest_name() -> Symbol {
     Symbol::qualified("sim", "topology")
+}
+
+/// Runtime site export symbol for the topology connection factory.
+pub fn topology_site_symbol() -> Symbol {
+    Symbol::qualified("topology", "site")
 }

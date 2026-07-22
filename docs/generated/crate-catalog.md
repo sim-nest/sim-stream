@@ -6,11 +6,14 @@ Generated from Cargo metadata by `xtask crate-catalog v1`.
 
 | Package | Publish | Targets | Description |
 | --- | --- | --- | --- |
-| `sim-lib-rank` | `true` | `custom-build, lib` | RANK 6 coordinate, codec, order, search, and optional domain spaces. |
-| `sim-lib-stream-audio` | `true` | `custom-build, lib` | PCM source and sink adapters for STREAM 6. |
-| `sim-lib-stream-clock` | `true` | `custom-build, lib` | Clock charts and tick conversion helpers for STREAM 6. |
-| `sim-lib-stream-combinators` | `true` | `custom-build, lib` | Lazy in-memory stream combinators for STREAM 6. |
+| `sim-lib-rank` | `true` | `custom-build, lib` | Coordinate, codec, order, search, and optional domain rank spaces. |
+| `sim-lib-stream-audio` | `true` | `custom-build, lib` | PCM source and sink adapters for SIM stream packets. |
+| `sim-lib-stream-clock` | `true` | `custom-build, lib` | Clock charts and tick conversion helpers for SIM streams. |
+| `sim-lib-stream-combinators` | `true` | `custom-build, lib` | Lazy in-memory combinators for SIM stream packets. |
 | `sim-lib-stream-core` | `true` | `custom-build, lib` | Core stream metadata, packets, envelopes, and buffer values. |
-| `sim-lib-stream-prelude` | `true` | `custom-build, lib` | Lisp-facing STREAM 6 prelude for memory streams. |
+| `sim-lib-stream-device` | `true` | `custom-build, lib` | Hardware-free device sample contracts for SIM stream sources. |
+| `sim-lib-stream-prelude` | `true` | `custom-build, lib` | Lisp-facing prelude for SIM memory streams. |
+| `sim-lib-stream-wrist` | `true` | `custom-build, lib` | Worn-device stream contracts and deterministic modeled wrist sources. |
+| `sim-lib-stream-xr` | `true` | `custom-build, lib` | XR glasses stream contracts and deterministic modeled sources. |
 | `sim-lib-topology` | `true` | `custom-build, lib` | Data-driven topology engine. |
-| `xtask` | `false` | `bin` | SIM workspace package for xtask. |
+| `xtask` | `false` | `bin` | Repository maintenance tasks for sim-stream. |

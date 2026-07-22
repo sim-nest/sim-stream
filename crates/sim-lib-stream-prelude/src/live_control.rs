@@ -5,7 +5,10 @@ use sim_lib_stream_core::{StreamDiagnostic, StreamPacket, StreamStats};
 use sim_value::kind::expr_kind;
 
 use crate::{
-    cap::{stream_control_capability, stream_open_capability, stream_read_capability},
+    cap::{
+        stream_control_capability, stream_open_capability, stream_read_capability,
+        stream_stats_capability,
+    },
     card::{
         cell_card, clock_card, diagnostic_card, diagnostic_explanation, graph_card,
         graph_expr_card, packet_card, stream_card, stream_card_with_age,
@@ -16,6 +19,7 @@ use crate::{
 
 pub(crate) fn list_fn(runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -> Result<Value> {
     cx.require(&stream_read_capability())?;
+    cx.require(&stream_stats_capability())?;
     let dropped_only = list_dropped_only(cx, args)?;
     let mut cards = Vec::new();
     for entry in runtime.stream_entries()? {
@@ -53,6 +57,7 @@ pub(crate) fn describe_fn(runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) -
 
     let value = eval_value(cx, subject)?;
     if let Some(handle) = value.object().downcast_ref::<StreamHandle>() {
+        cx.require(&stream_stats_capability())?;
         return stream_card(cx, handle);
     }
     if let Some(cell) = value.object().downcast_ref::<LiveCell>() {
@@ -189,6 +194,22 @@ pub(crate) fn reroute_fn(runtime: &StreamRuntime, cx: &mut Cx, args: &[Expr]) ->
     cx.factory().opaque(Arc::new(graph))
 }
 
+pub(crate) fn advance_catalog_time_fn(
+    runtime: &StreamRuntime,
+    cx: &mut Cx,
+    args: &[Expr],
+) -> Result<Value> {
+    cx.require(&stream_control_capability())?;
+    let [seconds] = args else {
+        return Err(Error::Eval(
+            "stream/advance-catalog-time! expects delta seconds".to_owned(),
+        ));
+    };
+    runtime.advance_time(Duration::from_secs(u64_arg(cx, seconds)?))?;
+    cx.factory()
+        .string(runtime.catalog_time()?.as_secs().to_string())
+}
+
 pub(crate) fn cancel_older_than_fn(
     runtime: &StreamRuntime,
     cx: &mut Cx,
@@ -197,7 +218,7 @@ pub(crate) fn cancel_older_than_fn(
     cx.require(&stream_control_capability())?;
     let [seconds] = args else {
         return Err(Error::Eval(
-            "stream/cancel-older-than! expects age seconds".to_owned(),
+            "stream/cancel-older-than! expects catalog age seconds".to_owned(),
         ));
     };
     let cancelled = runtime.cancel_older_than(Duration::from_secs(u64_arg(cx, seconds)?))?;

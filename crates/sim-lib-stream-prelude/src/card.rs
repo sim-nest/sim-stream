@@ -1,10 +1,13 @@
 use std::sync::Arc;
 
 use sim_kernel::{
-    Cx, DatumStore, Expr, Result, Symbol, Value,
+    CapabilityName, Cx, DatumStore, Expr, Result, Symbol, Value,
     card::{Card, ref_value},
 };
-use sim_lib_stream_core::{StreamDiagnostic, StreamMetadata, StreamPacket, StreamStats};
+use sim_lib_stream_core::{
+    StreamDiagnostic, StreamMetadata, StreamPacket, StreamStats, stream_cancel_capability,
+    stream_push_capability, stream_read_capability, stream_stats_capability,
+};
 
 use crate::{
     handle::StreamHandle,
@@ -14,25 +17,27 @@ use crate::{
 pub fn stream_card(cx: &mut Cx, handle: &StreamHandle) -> Result<Value> {
     let subject = handle.metadata().subject_ref();
     let stats = handle.stats()?;
+    let ops = vec![
+        cx.factory().symbol(Symbol::qualified("stream", "next!"))?,
+        cx.factory().symbol(Symbol::qualified("stream", "run!"))?,
+        cx.factory()
+            .symbol(Symbol::qualified("stream", "cancel!"))?,
+        cx.factory()
+            .symbol(Symbol::qualified("stream", "describe"))?,
+    ];
+    let requires = vec![
+        capability_symbol(cx, stream_read_capability())?,
+        capability_symbol(cx, stream_push_capability())?,
+        capability_symbol(cx, stream_cancel_capability())?,
+        capability_symbol(cx, stream_stats_capability())?,
+    ];
     let mut entries = base_card_entries(
         cx,
         &subject,
         Symbol::qualified("stream", "handle"),
         "browseable stream handle with memory runtime state",
-        vec![
-            cx.factory().symbol(Symbol::qualified("stream", "next!"))?,
-            cx.factory().symbol(Symbol::qualified("stream", "run!"))?,
-            cx.factory()
-                .symbol(Symbol::qualified("stream", "cancel!"))?,
-            cx.factory()
-                .symbol(Symbol::qualified("stream", "describe"))?,
-        ],
-        vec![
-            cx.factory()
-                .symbol(Symbol::qualified("capability", "stream.read"))?,
-            cx.factory()
-                .symbol(Symbol::qualified("capability", "stream.write"))?,
-        ],
+        ops,
+        requires,
     )?;
     entries.extend(vec![
         (
@@ -294,6 +299,11 @@ fn base_card_entries(
             cx.factory().symbol(Symbol::qualified("browse", "live"))?,
         ),
     ])
+}
+
+fn capability_symbol(cx: &mut Cx, capability: CapabilityName) -> Result<Value> {
+    cx.factory()
+        .symbol(Symbol::qualified("capability", capability.as_str()))
 }
 
 fn empty_coverage(cx: &mut Cx) -> Result<Value> {

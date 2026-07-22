@@ -1,17 +1,14 @@
 //! Topology registry and file reload support.
 
-use std::{
-    collections::BTreeMap,
-    path::{Path, PathBuf},
-};
+use std::{collections::BTreeMap, path::Path};
 
-use sim_kernel::{Cx, Error, Expr, Result, Symbol};
+use sim_kernel::{CapabilityName, Cx, Error, Expr, Result, Symbol};
 
 use crate::{
     Graph, TopologyConnection,
-    capability::{topology_file_capability, topology_write_capability},
+    capability::{graph_capability_names, topology_file_capability, topology_write_capability},
     compile_graph,
-    package::{TopologyPackage, load_package_file},
+    package::{TopologyPackage, TopologyPackageSource, load_package_source},
     run::run_graph,
     site::connection_from_graph,
 };
@@ -20,6 +17,7 @@ mod runtime;
 
 pub use runtime::{
     SharedTopologyRegistry, TopologyLib, install_topology_lib, manifest_name, topology_exports,
+    topology_site_symbol,
 };
 
 /// Registered topology artifact.
@@ -29,26 +27,26 @@ pub struct TopologyEntry {
     pub name: Symbol,
     /// Registered graph data.
     pub graph: Graph,
-    /// Source package path when the entry was loaded from disk.
-    pub source: Option<PathBuf>,
+    /// Reloadable package source descriptor when loaded from an external source.
+    pub source: Option<TopologyPackageSource>,
     /// Package metadata captured at load time.
     pub metadata: Vec<(Symbol, Expr)>,
-    /// Package capabilities captured at load time.
-    pub capabilities: Vec<Symbol>,
+    /// Package capabilities captured as typed authority names at load time.
+    pub capabilities: Vec<CapabilityName>,
 }
 
 impl TopologyEntry {
-    fn from_graph(name: Symbol, graph: Graph) -> Self {
-        Self {
+    fn from_graph(name: Symbol, graph: Graph) -> Result<Self> {
+        Ok(Self {
             name,
             metadata: graph.metadata.clone(),
-            capabilities: graph.capabilities.clone(),
+            capabilities: graph_capability_names(&graph)?,
             graph,
             source: None,
-        }
+        })
     }
 
-    fn from_package(package: TopologyPackage, source: PathBuf) -> Self {
+    fn from_package(package: TopologyPackage, source: TopologyPackageSource) -> Self {
         Self {
             name: package.name().clone(),
             graph: package.graph,
@@ -85,7 +83,8 @@ impl TopologyRegistry {
     /// Defines or replaces a named topology graph.
     pub fn def(&mut self, cx: &mut Cx, name: Symbol, graph: Graph) -> Result<TopologyEntry> {
         cx.require(&topology_write_capability())?;
-        let entry = TopologyEntry::from_graph(name.clone(), graph);
+        compile_graph(cx, &graph)?;
+        let entry = TopologyEntry::from_graph(name.clone(), graph)?;
         self.entries.insert(name, entry.clone());
         Ok(entry)
     }
@@ -108,31 +107,48 @@ impl TopologyRegistry {
 
     /// Loads a topology package from disk and registers it by graph name.
     pub fn load_file(&mut self, cx: &mut Cx, path: impl AsRef<Path>) -> Result<TopologyEntry> {
-        cx.require(&topology_file_capability())?;
+        self.load_source(
+            cx,
+            TopologyPackageSource::host_file(path.as_ref().to_path_buf()),
+        )
+    }
+
+    /// Loads a topology package from a source descriptor and registers it by graph name.
+    pub fn load_source(
+        &mut self,
+        cx: &mut Cx,
+        source: TopologyPackageSource,
+    ) -> Result<TopologyEntry> {
+        if source.requires_topology_file() {
+            cx.require(&topology_file_capability())?;
+        }
         cx.require(&topology_write_capability())?;
-        let path = path.as_ref().to_path_buf();
-        let package = load_package_file(&path)?;
-        let entry = TopologyEntry::from_package(package, path);
+        let package = load_package_source(cx, &source)?;
+        compile_graph(cx, &package.graph)?;
+        let entry = TopologyEntry::from_package(package, source);
         self.entries.insert(entry.name.clone(), entry.clone());
         Ok(entry)
     }
 
     /// Reloads a named topology entry from its original package path.
     pub fn reload(&mut self, cx: &mut Cx, name: &Symbol) -> Result<TopologyEntry> {
-        cx.require(&topology_file_capability())?;
         cx.require(&topology_write_capability())?;
         let source = self
             .entries
             .get(name)
             .and_then(|entry| entry.source.clone())
             .ok_or_else(|| Error::Eval(format!("topology {name} has no reloadable source")))?;
-        let package = load_package_file(&source)?;
+        if source.requires_topology_file() {
+            cx.require(&topology_file_capability())?;
+        }
+        let package = load_package_source(cx, &source)?;
         if package.name() != name {
             return Err(Error::Eval(format!(
                 "topology reload name mismatch: expected {name}, found {}",
                 package.name()
             )));
         }
+        compile_graph(cx, &package.graph)?;
         let entry = TopologyEntry::from_package(package, source);
         self.entries.insert(name.clone(), entry.clone());
         Ok(entry)
@@ -178,6 +194,15 @@ pub fn topology_load_file(
     path: impl AsRef<Path>,
 ) -> Result<TopologyEntry> {
     registry.load_file(cx, path)
+}
+
+/// Implements `topology/load-source`.
+pub fn topology_load_source(
+    cx: &mut Cx,
+    registry: &mut TopologyRegistry,
+    source: TopologyPackageSource,
+) -> Result<TopologyEntry> {
+    registry.load_source(cx, source)
 }
 
 /// Implements `topology/reload`.

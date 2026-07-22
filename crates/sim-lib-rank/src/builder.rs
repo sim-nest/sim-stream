@@ -1,8 +1,8 @@
 //! Builders that compose `RankGrammar` shapes for rankable spaces.
 //!
 //! Provides the fluent entry points -- primitive shapes, references, and the
-//! sum/product builders -- used to describe the structure of a `RankSpace`
-//! before its nodes are ranked to ordinals.
+//! sum/product builders -- that describe the structure of a `RankSpace` before
+//! its nodes are ranked to ordinals.
 
 use std::collections::BTreeSet;
 

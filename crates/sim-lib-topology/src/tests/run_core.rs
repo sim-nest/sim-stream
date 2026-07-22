@@ -2,13 +2,14 @@ use std::sync::Arc;
 
 use sim_codec_binary::BinaryCodecLib;
 use sim_kernel::{
-    Args, CORE_FUNCTION_CLASS_ID, Callable, ClassRef, Cx, DefaultFactory, EagerPolicy, Expr,
+    Args, CORE_FUNCTION_CLASS_ID, Callable, ClassRef, Cx, DefaultFactory, EagerPolicy, Error, Expr,
     Object, Symbol, Value,
 };
 use sim_shape::{ExprKind, ExprKindShape, shape_value};
 
 use crate::{
-    Edge, Graph, Node, PortRef, TopologyAdapterRegistry, compile_graph, connection_from_graph,
+    BudgetExhausted, Edge, Graph, Node, PortRef, TopologyAdapterRegistry, compile_graph,
+    connection_from_graph,
     run::{TopologyEventKind, TopologyRun, run_graph},
     topology_run_capability,
 };
@@ -150,6 +151,77 @@ fn run_core_edge_as_wraps_value() {
     );
 }
 
+#[test]
+fn run_core_rejects_wrong_graph_input_shape() {
+    let mut cx = runtime_cx();
+    let mut graph = in_out_graph("wrong-input-shape");
+    graph.input = Some(bool_shape());
+    let plan = compile_graph(&mut cx, &graph).expect("compiled graph");
+
+    let error = run_graph(&mut cx, &graph, &plan, Expr::String("seed".to_owned()))
+        .expect_err("input shape should reject string");
+
+    assert_eval_error_contains(error, "graph input");
+}
+
+#[test]
+fn run_core_rejects_wrong_node_output_shape() {
+    let mut cx = runtime_cx();
+    register_prefix(&mut cx, "prefix", "called:");
+    let mut graph = call_graph(
+        "wrong-node-output-shape",
+        Expr::Symbol(Symbol::qualified("test", "prefix")),
+    );
+    graph.nodes[1].output = Some(bool_shape());
+    let plan = compile_graph(&mut cx, &graph).expect("compiled graph");
+
+    let error = run_graph(&mut cx, &graph, &plan, Expr::String("seed".to_owned()))
+        .expect_err("node output shape should reject string");
+
+    assert_eval_error_contains(error, "node call output");
+}
+
+#[test]
+fn run_core_rejects_wrong_edge_delivered_port_shape() {
+    let mut cx = runtime_cx();
+    let mut graph = in_out_graph("wrong-edge-port-shape");
+    graph.nodes[1].inputs[0].shape = Some(bool_shape());
+    let plan = compile_graph(&mut cx, &graph).expect("compiled graph");
+
+    let error = run_graph(&mut cx, &graph, &plan, Expr::String("seed".to_owned()))
+        .expect_err("edge input port shape should reject string");
+
+    assert_eval_error_contains(error, "edge into node out input port in");
+}
+
+#[test]
+fn run_core_rejects_wrong_final_result_shape() {
+    let mut cx = runtime_cx();
+    let mut graph = in_out_graph("wrong-output-shape");
+    graph.output = Some(bool_shape());
+    let plan = compile_graph(&mut cx, &graph).expect("compiled graph");
+
+    let error = run_graph(&mut cx, &graph, &plan, Expr::String("seed".to_owned()))
+        .expect_err("graph output shape should reject string");
+
+    assert_eval_error_contains(error, "graph output");
+}
+
+#[test]
+fn run_core_rejects_partial_exhaustion_policy() {
+    let mut cx = runtime_cx();
+    let mut graph = in_out_graph("partial-budget");
+    graph.budget.on_exhausted = BudgetExhausted::Partial;
+    let plan = compile_graph(&mut cx, &graph).expect("compiled graph");
+
+    let error = match TopologyRun::new(&graph, &plan, Expr::String("seed".to_owned())) {
+        Ok(_) => panic!("partial exhaustion policy should be rejected"),
+        Err(error) => error,
+    };
+
+    assert_eval_error_contains(error, "partial exhaustion policy");
+}
+
 fn runtime_cx() -> Cx {
     let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
     cx.grant(topology_run_capability());
@@ -188,6 +260,20 @@ fn in_out_graph(name: &str) -> Graph {
     graph.nodes = vec![Node::named("in", "in"), Node::named("out", "out")];
     graph.edges = vec![Edge::new(0, PortRef::output("in"), PortRef::input("out"))];
     graph
+}
+
+fn bool_shape() -> Expr {
+    Expr::Symbol(Symbol::new("Bool"))
+}
+
+fn assert_eval_error_contains(error: Error, expected: &str) {
+    let Error::Eval(message) = error else {
+        panic!("unexpected error: {error}");
+    };
+    assert!(
+        message.contains(expected),
+        "expected {message:?} to contain {expected:?}"
+    );
 }
 
 fn call_graph(name: &str, target: Expr) -> Graph {

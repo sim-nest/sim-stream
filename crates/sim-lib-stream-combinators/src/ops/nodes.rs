@@ -1,8 +1,9 @@
-use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
-use sim_kernel::{Diagnostic, Error, Expr, Ref, Result};
-use sim_lib_stream_core::{StreamDirection, StreamItem, StreamMedia, StreamMetadata, StreamPacket};
+use sim_kernel::{Diagnostic, Error, Expr, Result};
+use sim_lib_stream_core::{
+    ClockTickIndex, StreamDirection, StreamItem, StreamMedia, StreamMetadata, StreamPacket,
+};
 
 use crate::stream::{Stream, StreamNode};
 
@@ -10,6 +11,10 @@ use super::{
     ClockConvertFn, DataMapFn, DiagnosticTapFn, MapFn, MergeKeyFn, PredicateFn, ShapePredicateFn,
     TapFn, stream_window_data_kind,
 };
+
+mod fan;
+
+pub(super) use fan::fan_readers;
 
 pub(super) fn map_with(source: Stream, f: MapFn) -> Stream {
     Stream::new(MapNode { source, f })
@@ -48,6 +53,7 @@ pub(super) fn window_by_count(source: Stream, count: usize) -> Stream {
         source,
         count,
         metadata,
+        state: Mutex::new(WindowState::default()),
     })
 }
 
@@ -61,27 +67,6 @@ pub(super) fn merge_with_key(left: Stream, right: Stream, key: MergeKeyFn) -> St
             right: None,
         }),
     })
-}
-
-pub(super) fn fan_readers(source: Stream) -> (Stream, Stream) {
-    let state = Arc::new(Mutex::new(FanState {
-        history: VecDeque::new(),
-        base: 0,
-        cursors: vec![0, 0],
-        done: false,
-    }));
-    (
-        Stream::new(FanReader {
-            source: source.clone(),
-            state: Arc::clone(&state),
-            id: 0,
-        }),
-        Stream::new(FanReader {
-            source,
-            state,
-            id: 1,
-        }),
-    )
 }
 
 pub(super) fn clock_convert_stream(
@@ -277,6 +262,13 @@ struct WindowNode {
     source: Stream,
     count: usize,
     metadata: StreamMetadata,
+    state: Mutex<WindowState>,
+}
+
+#[derive(Default)]
+struct WindowState {
+    items: Vec<StreamItem>,
+    source_done: bool,
 }
 
 impl StreamNode for WindowNode {
@@ -290,21 +282,38 @@ impl StreamNode for WindowNode {
                 "stream/window count must be greater than zero".to_owned(),
             ));
         }
-        let mut items = Vec::new();
-        for _ in 0..self.count {
-            let Some(item) = self.source.next_packet()? else {
-                break;
-            };
-            items.push(item);
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| Error::PoisonedLock("window stream"))?;
+        while state.items.len() < self.count && !state.source_done {
+            match self.source.next_packet()? {
+                Some(item) => state.items.push(item),
+                None => {
+                    if self.source.is_done()? {
+                        state.source_done = true;
+                    } else {
+                        return Ok(None);
+                    }
+                }
+            }
         }
-        if items.is_empty() {
+        if state.items.is_empty() {
             return Ok(None);
         }
+        if state.items.len() < self.count && !state.source_done {
+            return Ok(None);
+        }
+        let items = std::mem::take(&mut state.items);
         window_item(items).map(Some)
     }
 
     fn is_done(&self) -> Result<bool> {
-        self.source.is_done()
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| Error::PoisonedLock("window stream"))?;
+        Ok(state.items.is_empty() && (state.source_done || self.source.is_done()?))
     }
 }
 
@@ -341,7 +350,7 @@ impl StreamNode for MergeNode {
             (Some(_), None) => state.left.take(),
             (None, Some(_)) => state.right.take(),
             (Some(left), Some(right)) => {
-                if merge_key(left, &self.key) <= merge_key(right, &self.key) {
+                if merge_key(left, &self.key)? <= merge_key(right, &self.key)? {
                     state.left.take()
                 } else {
                     state.right.take()
@@ -401,84 +410,8 @@ fn window_metadata(source: &StreamMetadata) -> StreamMetadata {
     )
 }
 
-fn merge_key(item: &StreamItem, key: &MergeKeyFn) -> Option<Ref> {
+fn merge_key(item: &StreamItem, key: &MergeKeyFn) -> Result<Option<ClockTickIndex>> {
     key(item)
-}
-
-struct FanState {
-    /// Buffered packets in the retained window, oldest first.
-    history: VecDeque<StreamItem>,
-    /// Absolute index of `history`'s front packet (count already pruned).
-    base: usize,
-    /// Absolute read position of each reader, indexed by reader id.
-    cursors: Vec<usize>,
-    /// Whether the shared source has reached its terminal `done`.
-    done: bool,
-}
-
-impl FanState {
-    /// Drops every buffered packet below the slowest reader's cursor.
-    ///
-    /// Once both readers have advanced past a packet it can never be replayed,
-    /// so the retained window shrinks to the gap between the readers rather than
-    /// growing with the whole stream.
-    fn prune(&mut self) {
-        let low = self.cursors.iter().copied().min().unwrap_or(self.base);
-        if low > self.base {
-            let drop = low - self.base;
-            self.history.drain(0..drop.min(self.history.len()));
-            self.base = low;
-        }
-    }
-}
-
-struct FanReader {
-    source: Stream,
-    state: Arc<Mutex<FanState>>,
-    id: usize,
-}
-
-impl StreamNode for FanReader {
-    fn metadata(&self) -> &StreamMetadata {
-        self.source.metadata()
-    }
-
-    fn next_packet(&self) -> Result<Option<StreamItem>> {
-        let mut state = self
-            .state
-            .lock()
-            .map_err(|_| Error::PoisonedLock("fan stream"))?;
-        let cursor = state.cursors[self.id];
-        if cursor < state.base + state.history.len() {
-            let item = state.history[cursor - state.base].clone();
-            state.cursors[self.id] = cursor + 1;
-            state.prune();
-            return Ok(Some(item));
-        }
-        if state.done {
-            return Ok(None);
-        }
-        match self.source.next_packet()? {
-            Some(item) => {
-                state.history.push_back(item.clone());
-                state.cursors[self.id] = cursor + 1;
-                state.prune();
-                Ok(Some(item))
-            }
-            None => {
-                state.done = true;
-                Ok(None)
-            }
-        }
-    }
-
-    fn is_done(&self) -> Result<bool> {
-        let state = self
-            .state
-            .lock()
-            .map_err(|_| Error::PoisonedLock("fan stream"))?;
-        Ok(state.done && state.cursors[self.id] >= state.base + state.history.len())
-    }
 }
 
 struct ClockConvertNode {
@@ -508,92 +441,5 @@ impl StreamNode for ClockConvertNode {
 
     fn is_done(&self) -> Result<bool> {
         self.source.is_done()
-    }
-}
-
-#[cfg(test)]
-mod fan_prune_tests {
-    use super::*;
-    use sim_kernel::Symbol;
-    use sim_lib_stream_core::{BufferPolicy, StreamDiagnostic, StreamMedia};
-
-    fn meta() -> StreamMetadata {
-        StreamMetadata::new(
-            Symbol::qualified("stream/test", "fan"),
-            StreamMedia::Diagnostic,
-            StreamDirection::Source,
-            Symbol::qualified("clock", "test"),
-            BufferPolicy::bounded(8).unwrap(),
-        )
-    }
-
-    fn item(message: &str) -> StreamItem {
-        StreamItem::new(StreamPacket::Diagnostic(StreamDiagnostic::new(
-            Symbol::qualified("stream/test", "packet"),
-            message,
-        )))
-    }
-
-    fn shared() -> Arc<Mutex<FanState>> {
-        Arc::new(Mutex::new(FanState {
-            history: VecDeque::new(),
-            base: 0,
-            cursors: vec![0, 0],
-            done: false,
-        }))
-    }
-
-    #[test]
-    fn history_stays_bounded_when_readers_advance_together() {
-        let items: Vec<StreamItem> = (0..6).map(|i| item(&format!("p{i}"))).collect();
-        let source = Stream::pull(meta(), items);
-        let state = shared();
-        let left = FanReader {
-            source: source.clone(),
-            state: Arc::clone(&state),
-            id: 0,
-        };
-        let right = FanReader {
-            source,
-            state: Arc::clone(&state),
-            id: 1,
-        };
-
-        for _ in 0..6 {
-            left.next_packet().unwrap();
-            assert!(state.lock().unwrap().history.len() <= 1);
-            right.next_packet().unwrap();
-            assert!(state.lock().unwrap().history.is_empty());
-        }
-    }
-
-    #[test]
-    fn history_prunes_below_the_slowest_reader() {
-        let items: Vec<StreamItem> = (0..6).map(|i| item(&format!("p{i}"))).collect();
-        let source = Stream::pull(meta(), items);
-        let state = shared();
-        let left = FanReader {
-            source: source.clone(),
-            state: Arc::clone(&state),
-            id: 0,
-        };
-        let right = FanReader {
-            source,
-            state: Arc::clone(&state),
-            id: 1,
-        };
-
-        // Left races four packets ahead while right stays put: history retains
-        // exactly the un-consumed gap.
-        for _ in 0..4 {
-            left.next_packet().unwrap();
-        }
-        assert_eq!(state.lock().unwrap().history.len(), 4);
-
-        // Once right catches up, the retained window drains back to empty.
-        for _ in 0..4 {
-            right.next_packet().unwrap();
-        }
-        assert!(state.lock().unwrap().history.is_empty());
     }
 }
