@@ -1,5 +1,5 @@
 use sim_kernel::{ContentId, Cx, EventKind, Expr, Ref, Symbol};
-use sim_lib_stream_core::{StreamItem, StreamPacket};
+use sim_lib_stream_core::{ClockDomain, StreamItem, StreamPacket};
 
 #[cfg(feature = "rank-learn")]
 use crate::order_score::{
@@ -186,10 +186,12 @@ fn frontier_stream_emits_same_ordinals_as_event_source() {
     );
     let source_ordinals = collect_event_ordinals(&mut cx, &frontier, source);
 
-    let packets = frontier
-        .data_stream(RankFrontierPayload::OrdinalContent)
-        .take_packets(32)
-        .unwrap();
+    let stream = frontier.data_stream(RankFrontierPayload::OrdinalContent);
+    assert_eq!(
+        stream.metadata().clock(),
+        &ClockDomain::ServerFrame.symbol()
+    );
+    let packets = stream.take_packets(32).unwrap();
     assert_data_packet_kind(&packets[0], rank_frontier_data_kind());
     assert_eq!(
         symbol_field(data_payload(&packets[0]), "payload-kind"),
