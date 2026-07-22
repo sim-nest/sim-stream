@@ -11,12 +11,12 @@ homepage = "https://github.com/sim-nest/sim-stream"
 
 [dependencies]
 sim-cookbook = { version = "0.1.0" }
-sim-citizen = { version = "0.1.0" }
-sim-citizen-derive = { version = "0.1.0" }
+sim-citizen = { version = "0.1.2" }
+sim-citizen-derive = { version = "0.1.1" }
 sim-codec = { version = "0.1.0" }
 sim-kernel = { version = "0.1.0" }
 sim-lib-core = { version = "0.1.0" }
-sim-lib-stream-core = { version = "0.1.0", path = "../sim-lib-stream-core" }
+sim-lib-stream-core = { version = "0.1.2", path = "../sim-lib-stream-core" }
 sim-shape = { version = "0.1.0" }
 sim-value = { version = "0.1.0" }
 

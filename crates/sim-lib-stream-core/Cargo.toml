@@ -1,6 +1,6 @@
 [package]
 name = "sim-lib-stream-core"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 license = "MPL-2.0"
 description = "Core stream metadata, packets, envelopes, and buffer values."
@@ -10,8 +10,8 @@ repository = "https://github.com/sim-nest/sim-stream"
 homepage = "https://github.com/sim-nest/sim-stream"
 
 [dependencies]
-sim-citizen = { version = "0.1.0" }
-sim-citizen-derive = { version = "0.1.0" }
+sim-citizen = { version = "0.1.2" }
+sim-citizen-derive = { version = "0.1.1" }
 sim-cookbook = { version = "0.1.0" }
 sim-kernel = { version = "0.1.0" }
 sim-shape = { version = "0.1.0" }
