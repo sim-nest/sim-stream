@@ -6,6 +6,7 @@ use sim_kernel::{
     Object, Symbol, Value,
 };
 use sim_shape::{ExprKind, ExprKindShape, shape_value};
+use sim_value::access::field;
 
 use crate::{
     BudgetExhausted, Edge, Graph, Node, PortRef, TopologyAdapterRegistry, compile_graph,
@@ -310,18 +311,6 @@ fn shape_codec_table_graph() -> Graph {
         Edge::new(3, PortRef::output("table"), PortRef::input("out")),
     ];
     graph
-}
-
-fn field<'a>(expr: &'a Expr, name: &str) -> Option<&'a Expr> {
-    let Expr::Map(entries) = expr else {
-        return None;
-    };
-    entries.iter().find_map(|(key, value)| match key {
-        Expr::Symbol(symbol) if symbol.namespace.is_none() && symbol.name.as_ref() == name => {
-            Some(value)
-        }
-        _ => None,
-    })
 }
 
 fn register_prefix(cx: &mut Cx, name: &str, prefix: &'static str) {

@@ -4,6 +4,7 @@ use sim_kernel::{
     Args, CORE_FUNCTION_CLASS_ID, Callable, ClassRef, Cx, DefaultFactory, EagerPolicy, Expr,
     Object, Symbol, Value,
 };
+use sim_value::access::field;
 
 use crate::{
     Cell, Edge, Graph, Node, PortRef, parse_graph, topology_explain, topology_reflect_capability,
@@ -152,17 +153,10 @@ fn option(key: &str, value: &str) -> (Symbol, Expr) {
 }
 
 fn list_field<'a>(expr: &'a Expr, name: &str) -> Option<&'a [Expr]> {
-    let Expr::Map(entries) = expr else {
-        return None;
-    };
-    entries.iter().find_map(|(key, value)| match (key, value) {
-        (Expr::Symbol(symbol), Expr::List(items))
-            if symbol.namespace.is_none() && symbol.name.as_ref() == name =>
-        {
-            Some(items.as_slice())
-        }
+    match field(expr, name) {
+        Some(Expr::List(items)) => Some(items.as_slice()),
         _ => None,
-    })
+    }
 }
 
 fn register_prefix(cx: &mut Cx, name: &str, prefix: &'static str) {
