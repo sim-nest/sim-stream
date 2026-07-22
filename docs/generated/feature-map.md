@@ -11,5 +11,7 @@
 | `sim-lib-stream-core` | `workspace` | 0 | 0 |
 | `sim-lib-stream-device` | `workspace` | 0 | 0 |
 | `sim-lib-stream-prelude` | `workspace` | 0 | 0 |
+| `sim-lib-stream-wrist` | `workspace` | 0 | 0 |
+| `sim-lib-stream-xr` | `workspace` | 0 | 0 |
 | `sim-lib-topology` | `workspace` | 0 | 0 |
 | `xtask` | `workspace` | 0 | 0 |

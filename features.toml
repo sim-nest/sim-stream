@@ -1,11 +1,35 @@
 schema = "sim.features"
 
 [enforcement.audience]
+code = "strict"
 framework = "strict"
 
 [enforcement.route]
 major_entrypoints = "advisory"
 frameworks = "advisory"
+
+[[feature]]
+id = "feature/sim-stream/generated-docs"
+title = "Repository documentation surface"
+summary = "Publish generated package, card, rustdoc, and index facts for the stream and topology crates."
+owner = "crate/xtask"
+audiences = ["code"]
+guidance = "Use this row when checking the generated documentation and index lane for stream helpers."
+claims_anchors = [
+  "anchor/cli/xtask",
+  "anchor/crate/xtask",
+  "anchor/doc/generated/card-index",
+  "anchor/doc/generated/feature-map",
+  "anchor/doc/generated/provenance",
+  "anchor/doc/generated/repo-contract",
+  "anchor/doc/generated/rustdoc-index",
+  "anchor/doc/generated/sim-index-fragment",
+  "anchor/repo/sim-stream",
+]
+claims_surfaces = [
+  "cli/xtask",
+  "docs/sim-stream/generated",
+]
 
 [[feature]]
 id = "feature/sim-stream/stream-protocol-helpers"
@@ -16,12 +40,17 @@ audiences = ["code", "framework"]
 guidance = "Use this row when a framework needs reusable stream metadata, device streams, or topology helpers."
 claims_anchors = [
   "anchor/crate/sim-lib-rank",
+  "anchor/crate/sim-lib-stream-audio",
+  "anchor/crate/sim-lib-stream-clock",
+  "anchor/crate/sim-lib-stream-combinators",
   "anchor/crate/sim-lib-stream-core",
   "anchor/crate/sim-lib-stream-device",
   "anchor/crate/sim-lib-stream-prelude",
   "anchor/crate/sim-lib-stream-wrist",
   "anchor/crate/sim-lib-stream-xr",
   "anchor/crate/sim-lib-topology",
+  "anchor/export/sim-lib-stream-core/packet/pcm.rs",
+  "anchor/export/sim-lib-stream-core/shape/structural.rs",
   "anchor/runtime-lib/sim-lib-rank/rank-lib",
   "anchor/runtime-lib/sim-lib-stream-core/stream-core-shapes-lib",
   "anchor/runtime-lib/sim-lib-stream-device/device-stream-base-lib",

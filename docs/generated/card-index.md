@@ -12,5 +12,7 @@
 | `cookbook/stream-core-shapes` | `cookbook-recipe` | `sim-lib-stream-core` | Stream metadata and descriptor shapes. |
 | `cookbook/stream-device` | `cookbook-recipe` | `sim-lib-stream-device` | Hardware-free device sample descriptors and modeled sources. |
 | `cookbook/stream-prelude` | `cookbook-recipe` | `sim-lib-stream-prelude` | Lisp-facing memory stream operations and stream Cards. |
+| `cookbook/stream-wrist` | `cookbook-recipe` | `sim-lib-stream-wrist` | Worn-device sample descriptors and modeled wrist sources. |
+| `cookbook/stream-xr` | `cookbook-recipe` | `sim-lib-stream-xr` | XR glasses sample descriptors and modeled sources. |
 | `cookbook/topology` | `cookbook-recipe` | `sim-lib-topology` | Data-authored topology graphs, packages, validation, and replay. |
 | `registry/catalog` | `browse-registry` | `workspace` | registry catalog browse card |

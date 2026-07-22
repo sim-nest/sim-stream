@@ -17,6 +17,7 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 
 | Feature | Subject | Specimens | Summary |
 | --- | --- | ---: | --- |
+| `feature/sim-stream/generated-docs` | `crate/xtask` | 0 | Publish generated package, card, rustdoc, and index facts for the stream and topology crates. |
 | `feature/sim-stream/stream-protocol-helpers` | `crate/sim-lib-stream-core` | 1 | Provide rank, topology, stream core, device, wrist, and XR helpers as loadable stream libraries. |
 
 ## Surfaces

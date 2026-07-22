@@ -11,5 +11,7 @@
 | `sim-lib-stream-core` | `workspace` | Core stream envelopes, metadata, packets, and buffer values. |
 | `sim-lib-stream-device` | `workspace` | Device sample contracts and deterministic modeled sources for SIM streams. |
 | `sim-lib-stream-prelude` | `workspace` | Lisp-facing prelude for SIM memory streams. |
+| `sim-lib-stream-wrist` | `workspace` | Worn-device sample contracts and deterministic modeled wrist sources. |
+| `sim-lib-stream-xr` | `workspace` | XR glasses sample contracts and deterministic modeled sources. |
 | `sim-lib-topology` | `workspace` | Data-driven topology engine. |
 | `xtask` | `workspace` | Repository maintenance tasks for sim-stream. |
