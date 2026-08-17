@@ -14,15 +14,15 @@ sim-cookbook = { version = "0.2.0" }
 sim-citizen = { version = "0.2.0" }
 sim-citizen-derive = { version = "0.2.0" }
 sim-codec = { version = "0.1.7" }
-sim-kernel = { version = "0.2.0" }
+sim-kernel = { version = "0.2.1" }
 sim-lib-core = { version = "0.2.0" }
 sim-lib-stream-core = { version = "0.1.4", path = "../sim-lib-stream-core" }
-sim-shape = { version = "0.2.0" }
+sim-shape = { version = "0.2.3" }
 sim-value = { version = "0.2.0" }
 
 [dev-dependencies]
 sim-codec-binary = { version = "0.2.0" }
-sim-kernel = { version = "0.2.0", features = ["test-support"] }
+sim-kernel = { version = "0.2.1", features = ["test-support"] }
 
 [lints]
 workspace = true

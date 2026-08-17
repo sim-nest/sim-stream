@@ -14,14 +14,14 @@ sim-cookbook = { version = "0.2.0" }
 num-bigint = "0.4"
 sim-citizen = { version = "0.2.0" }
 sim-codec-binary = { optional = true, version = "0.2.0" }
-sim-kernel = { version = "0.2.0" }
+sim-kernel = { version = "0.2.1" }
 sim-lib-core = { version = "0.2.0" }
 sim-lib-stream-core = { version = "0.1.4", path = "../sim-lib-stream-core" }
 
 [dev-dependencies]
 sim-codec = { version = "0.1.0" }
 sim-codec-lisp = { version = "0.2.0" }
-sim-kernel = { version = "0.2.0", features = ["test-support"] }
+sim-kernel = { version = "0.2.1", features = ["test-support"] }
 
 [features]
 default = []
