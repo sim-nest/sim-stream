@@ -54,8 +54,6 @@ claims_anchors = [
   "anchor/crate/sim-lib-stream-wrist",
   "anchor/crate/sim-lib-stream-xr",
   "anchor/crate/sim-lib-topology",
-  "anchor/export/sim-lib-stream-core/packet/pcm.rs",
-  "anchor/export/sim-lib-stream-core/shape/structural.rs",
   "anchor/runtime-lib/sim-lib-rank/rank-lib",
   "anchor/runtime-lib/sim-lib-stream-core/stream-core-shapes-lib",
   "anchor/runtime-lib/sim-lib-stream-device/device-stream-base-lib",
