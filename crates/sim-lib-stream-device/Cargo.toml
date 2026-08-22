@@ -21,7 +21,7 @@ sim-value = { version = "0.2.0" }
 sim-kernel = { version = "0.2.1", features = ["test-support"] }
 
 [build-dependencies]
-sim-cookbook = { version = "0.2.0" }
+sim-cookbook-build = { version = "0.1.0" }
 
 [lints]
 workspace = true
