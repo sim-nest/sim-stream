@@ -19,7 +19,7 @@ title = "Repository documentation surface"
 summary = "Publish generated package, card, rustdoc, and index facts for the stream and topology crates."
 owner = "crate/xtask"
 audiences = ["code"]
-guidance = "Use this row when checking the generated documentation and index lane for stream helpers."
+guidance = "Use this host-tool row when checking the generated documentation and index lane for stream helpers; it is OS/HW-neutral and remains outside every product closure."
 claims_anchors = [
   "anchor/cli/xtask",
   "anchor/crate/xtask",

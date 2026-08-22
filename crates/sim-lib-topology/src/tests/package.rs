@@ -1,8 +1,4 @@
-use std::{
-    fs,
-    path::PathBuf,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::{fs, path::PathBuf};
 
 use sim_kernel::{CapabilityName, Expr, NumberLiteral, Symbol};
 
@@ -122,18 +118,15 @@ capabilities:
 }
 
 fn write_temp_package(label: &str, source: &str) -> PathBuf {
-    let path = temp_path(label);
+    let path = modeled_package_path(label);
+    fs::create_dir_all(path.parent().expect("modeled package parent"))
+        .expect("create modeled package directory");
     fs::write(&path, source).expect("write temp package");
     path
 }
 
-fn temp_path(label: &str) -> PathBuf {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("clock")
-        .as_nanos();
-    std::env::temp_dir().join(format!(
-        "sim-topology-package-{label}-{}-{nanos}.simtopo",
-        std::process::id()
-    ))
+fn modeled_package_path(label: &str) -> PathBuf {
+    PathBuf::from("target")
+        .join("model-inputs")
+        .join(format!("sim-topology-package-{label}.simtopo"))
 }
