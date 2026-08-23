@@ -32,7 +32,11 @@
 //! assert_eq!(package.name(), &Symbol::new("doc-flow"));
 //! assert_eq!(package.tests.len(), 1);
 //!
-//! let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+//! let mut cx = Cx::new(
+//!     Arc::new(NoopEvalPolicy),
+//!     Arc::new(DefaultFactory),
+//!     sim_kernel::HandleSeed::new(1),
+//! );
 //! let plan = compile_graph(&mut cx, &package.graph).unwrap();
 //! assert_eq!(plan.nodes.len(), 3);
 //!
@@ -61,6 +65,7 @@ pub mod registry;
 pub mod replay;
 pub mod run;
 mod run_cells;
+mod run_continuation;
 mod run_contract;
 mod run_nonlinear;
 mod run_predicate;
@@ -113,6 +118,9 @@ pub use registry::{
     topology_site_symbol,
 };
 pub use replay::{TopologyCounterfactual, counterfactual_replay, replay_report};
+pub use run::{
+    TopologyBindingDescriptor, TopologyBindings, TopologyContinuation, TopologyProgress,
+};
 pub use site::{TopologyConnection, connection_from_graph};
 
 /// Cookbook recipes for this lib, embedded at build time.

@@ -121,7 +121,11 @@ fn topology_connection_requires_client_capabilities() {
 
 #[test]
 fn topology_connection_requires_topology_run_capability() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(1),
+    );
     let connection = connection_from_graph(&mut cx, &identity_graph()).expect("connection");
 
     let error = connection
@@ -218,7 +222,11 @@ fn topology_connection_rejects_deadline() {
 }
 
 fn runtime_cx() -> Cx {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(1),
+    );
     cx.grant(eval_fabric_capability());
     cx.grant(topology_run_capability());
     cx

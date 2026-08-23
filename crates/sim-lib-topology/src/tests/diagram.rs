@@ -142,7 +142,11 @@ fn diagram_from_diagram_returns_connection() {
 }
 
 fn runtime_cx() -> Cx {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(1),
+    );
     cx.grant(topology_run_capability());
     let binary = sim_codec_binary::BinaryCodecLib::new(cx.registry_mut().fresh_codec_id());
     cx.load_lib(&binary).unwrap();

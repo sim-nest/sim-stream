@@ -31,7 +31,11 @@ pub use model::{
 /// .unwrap();
 ///
 /// let sites = SiteMap::new(SiteProfile::audio_clock("studio"));
-/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(
+///     Arc::new(NoopEvalPolicy),
+///     Arc::new(DefaultFactory),
+///     sim_kernel::HandleSeed::new(1),
+/// );
 /// let report = place(&mut cx, &package.graph, &sites).unwrap();
 ///
 /// assert!(report.is_accepted());

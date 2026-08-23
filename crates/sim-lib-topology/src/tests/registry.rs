@@ -302,7 +302,11 @@ fn registry_runtime_load_source_accepts_table_value() {
 }
 
 fn test_cx() -> Cx {
-    Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory))
+    Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(1),
+    )
 }
 
 fn identity_graph(name: &str) -> crate::Graph {

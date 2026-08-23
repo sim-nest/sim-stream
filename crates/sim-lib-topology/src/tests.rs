@@ -337,7 +337,11 @@ fn port_names(ports: &[crate::Port]) -> Vec<&str> {
 }
 
 fn test_cx() -> Cx {
-    Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory))
+    Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(1),
+    )
 }
 
 fn parse_expr(cx: &mut Cx, expr: Expr) -> Graph {

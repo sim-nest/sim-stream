@@ -77,6 +77,22 @@ impl TopologyCells {
         self.write(cx, name, Expr::Nil)
     }
 
+    /// Returns cell values in canonical name order.
+    pub fn values(&self) -> &BTreeMap<Symbol, Expr> {
+        &self.values
+    }
+
+    pub(crate) fn restore(graph: &Graph, values: BTreeMap<Symbol, Expr>) -> Result<Self> {
+        let mut cells = Self::new(graph)?;
+        if cells.values.keys().ne(values.keys()) {
+            return Err(Error::Eval(
+                "topology continuation: cell set does not match graph".into(),
+            ));
+        }
+        cells.values = values;
+        Ok(cells)
+    }
+
     fn spec(&self, name: &Symbol) -> Result<&Cell> {
         self.specs
             .get(name)
