@@ -3,6 +3,7 @@
 use std::collections::{BTreeMap, VecDeque};
 
 use sim_kernel::{Expr, Symbol};
+use sim_value::build::entry as field;
 
 /// Mutable nonlinear node state for one topology run.
 #[derive(Clone, Debug)]
@@ -224,9 +225,6 @@ impl NodeNonlinearState {
     }
 }
 
-fn field(name: &str, value: Expr) -> (Expr, Expr) {
-    (Expr::Symbol(Symbol::new(name)), value)
-}
 fn map(expr: &Expr) -> Result<&[(Expr, Expr)], String> {
     if let Expr::Map(v) = expr {
         Ok(v)
