@@ -45,7 +45,7 @@ impl TopologyBindingDescriptor {
 }
 
 /// Runtime bindings supplied by a caller for this process.
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct TopologyBindings {
     pub(crate) entries: BTreeMap<crate::NodeId, (TopologyBindingDescriptor, Value)>,
 }

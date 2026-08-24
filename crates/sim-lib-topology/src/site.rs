@@ -12,8 +12,11 @@ use sim_kernel::{
 };
 
 use crate::{
-    CompiledGraph, Graph, capability::topology_run_capability, compile_graph, parse_graph,
-    run::run_graph, run_contract::check_value_shape,
+    CompiledGraph, Graph,
+    capability::topology_run_capability,
+    compile_graph, parse_graph,
+    run::{TopologyBindings, run_graph_with_bindings},
+    run_contract::check_value_shape,
 };
 
 /// Local eval fabric backed by a compiled topology graph.
@@ -26,6 +29,7 @@ use crate::{
 pub struct TopologyConnection {
     source: Graph,
     graph: CompiledGraph,
+    bindings: TopologyBindings,
 }
 
 #[derive(Clone, Debug)]
@@ -42,7 +46,20 @@ impl TopologySiteFactory {
 impl TopologyConnection {
     /// Creates a topology connection for an already compiled graph.
     pub fn new(source: Graph, graph: CompiledGraph) -> Self {
-        Self { source, graph }
+        Self {
+            source,
+            graph,
+            bindings: TopologyBindings::new(),
+        }
+    }
+
+    /// Creates a topology connection with explicit live bindings for call nodes.
+    pub fn with_bindings(source: Graph, graph: CompiledGraph, bindings: TopologyBindings) -> Self {
+        Self {
+            source,
+            graph,
+            bindings,
+        }
     }
 
     /// Returns the source graph data owned by this connection.
@@ -158,6 +175,20 @@ pub fn connection_from_graph(cx: &mut Cx, graph: &Graph) -> Result<TopologyConne
     Ok(TopologyConnection::new(graph.clone(), compiled))
 }
 
+/// Builds a local eval fabric whose call nodes use explicit live bindings.
+pub fn connection_from_graph_with_bindings(
+    cx: &mut Cx,
+    graph: &Graph,
+    bindings: TopologyBindings,
+) -> Result<TopologyConnection> {
+    let compiled = compile_graph(cx, graph)?;
+    Ok(TopologyConnection::with_bindings(
+        graph.clone(),
+        compiled,
+        bindings,
+    ))
+}
+
 fn answer_request(
     cx: &mut Cx,
     connection: &TopologyConnection,
@@ -168,11 +199,12 @@ fn answer_request(
     validate_request_controls(&request)?;
     let result_shape = request.result_shape.clone();
     let trace = request.trace;
-    let output = run_graph(
+    let output = run_graph_with_bindings(
         cx,
         connection.source_graph(),
         connection.graph(),
         request.expr,
+        connection.bindings.clone(),
     )?;
     let value = cx.factory().expr(output)?;
     check_value_shape(cx, "request result", result_shape.as_ref(), value.clone())?;

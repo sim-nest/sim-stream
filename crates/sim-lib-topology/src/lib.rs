@@ -121,7 +121,7 @@ pub use replay::{TopologyCounterfactual, counterfactual_replay, replay_report};
 pub use run::{
     TopologyBindingDescriptor, TopologyBindings, TopologyContinuation, TopologyProgress,
 };
-pub use site::{TopologyConnection, connection_from_graph};
+pub use site::{TopologyConnection, connection_from_graph, connection_from_graph_with_bindings};
 
 /// Cookbook recipes for this lib, embedded at build time.
 pub static RECIPES: sim_cookbook::EmbeddedDir =

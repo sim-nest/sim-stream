@@ -668,9 +668,21 @@ impl<'a> TopologyRun<'a> {
 
 /// Runs a compiled graph with one input expression.
 pub fn run_graph(cx: &mut Cx, graph: &Graph, plan: &CompiledGraph, input: Expr) -> Result<Expr> {
+    run_graph_with_bindings(cx, graph, plan, input, TopologyBindings::new())
+}
+
+/// Runs a compiled graph with one input expression and explicit live node bindings.
+pub fn run_graph_with_bindings(
+    cx: &mut Cx,
+    graph: &Graph,
+    plan: &CompiledGraph,
+    input: Expr,
+    bindings: TopologyBindings,
+) -> Result<Expr> {
     cx.require(&topology_run_capability())?;
     require_graph_capabilities(cx, graph)?;
     let mut run = TopologyRun::new(graph, plan, input)?;
+    run.set_bindings(bindings);
     run.run(cx)?;
     Ok(run.output_expr())
 }
