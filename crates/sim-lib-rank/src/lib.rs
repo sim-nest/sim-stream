@@ -23,6 +23,7 @@ pub mod error;
 pub mod expr;
 #[cfg(feature = "rank-expr")]
 mod expr_neighborhood;
+pub mod fusion;
 pub mod grade;
 pub mod grade_compile;
 mod grade_util;
@@ -76,7 +77,9 @@ pub use codec_primitive::RankPrimitiveCodec;
 pub use context::{
     RankContext, default_order_for_context, order_symbol, standard_default_contexts,
 };
-pub use cookbook::{rank_retrieve_demo, recommendation_ranking_demo, space_coordinate_demo};
+pub use cookbook::{
+    rank_fusion_demo, rank_retrieve_demo, recommendation_ranking_demo, space_coordinate_demo,
+};
 pub use derive_support::{
     RankChild, RankDescribe, RankDescribeContext, RankEnumDescriptor, RankRecursive, derived_symbol,
 };
@@ -88,6 +91,10 @@ pub use expr::{
 };
 #[cfg(feature = "rank-expr")]
 pub use expr_neighborhood::RankExprNeighborhood;
+pub use fusion::{
+    FusedRank, FusionLimits, RankContribution, RankDrop, RankDropReason, RankTieBreak,
+    RankedFusion, RankedList, ranked_list_from_embeddings, reciprocal_rank_fusion,
+};
 pub use grade::{GradeMemoStats, RankGrade, count_at_grade, grade_count_is_finite, grade_of_node};
 pub use grade_compile::GradeCompiler;
 pub use grammar::{RankAlt, RankField, RankGrammar};
@@ -135,5 +142,7 @@ pub use version::RankVersion;
 pub static RECIPES: sim_cookbook::EmbeddedDir =
     include!(concat!(env!("OUT_DIR"), "/cookbook_recipes.rs"));
 
+#[cfg(test)]
+mod fusion_tests;
 #[cfg(test)]
 mod test_modules;

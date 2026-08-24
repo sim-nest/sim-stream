@@ -11,7 +11,8 @@ Rank turns a structured space of possibilities into a line of numbered positions
 - Anything describable by a grammar becomes searchable by number, so retrieval and ordering share one mechanism.
 - The mapping runs both ways exactly, so a position and its item are always recoverable from each other.
 - Search walks toward higher-scoring items step by step, so good candidates are found without scanning everything.
+- Weighted reciprocal-rank fusion combines bounded rankings from any providers with stable ordering and a receipt that explains every score, duplicate, cutoff, and tie-break.
 
 ## Where it fits
 
-Rank is SIM's coordinate-and-order engine, used wherever changing data must be sorted, scored, or retrieved by position -- including ranking stream items by a field. It stays in library space with its own codecs, spaces, and search, offering a shared way to number and order structured values rather than hardwiring any single ordering into the runtime.
+Rank is SIM's coordinate-and-order engine, used wherever changing data must be sorted, scored, retrieved, or fused -- including ranking stream items by a field. It stays provider-neutral in library space with its own codecs, spaces, and search, offering a shared mechanism rather than hardwiring any provider or ordering into the runtime.

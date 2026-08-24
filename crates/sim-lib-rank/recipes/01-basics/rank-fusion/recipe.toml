@@ -1,0 +1,13 @@
+id = "rank-fusion"
+title = "Provider-neutral three-list fusion"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 30
+tags = ["rank", "fusion", "rrf", "deterministic", "sandbox-descriptor"]
+requires = ["rank", "codec/lisp"]
+expected = "expected.txt"
+
+[[expect]]
+form = 0
+result = "(rank-fusion (sources semantic lexical freshness) (ordered essay guide clip) (receipt all-contributions-recorded))"

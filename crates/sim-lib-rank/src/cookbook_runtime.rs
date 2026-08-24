@@ -8,7 +8,9 @@ use sim_kernel::{
 };
 
 use crate::{
-    cookbook::{rank_retrieve_demo, recommendation_ranking_demo, space_coordinate_demo},
+    cookbook::{
+        rank_fusion_demo, rank_retrieve_demo, recommendation_ranking_demo, space_coordinate_demo,
+    },
     lisp_class::class_value_or_stub,
 };
 
@@ -22,14 +24,16 @@ enum RankCookbookFunctionKind {
     SpaceCoordinate,
     Retrieve,
     RecommendationRanking,
+    Fusion,
 }
 
 impl RankCookbookFunctionKind {
-    fn all() -> [Self; 3] {
+    fn all() -> [Self; 4] {
         [
             Self::SpaceCoordinate,
             Self::Retrieve,
             Self::RecommendationRanking,
+            Self::Fusion,
         ]
     }
 
@@ -38,6 +42,7 @@ impl RankCookbookFunctionKind {
             Self::SpaceCoordinate => Symbol::qualified("rank", "space-coordinate-demo"),
             Self::Retrieve => Symbol::qualified("rank", "retrieve-demo"),
             Self::RecommendationRanking => Symbol::qualified("rank", "recommendation-ranking-demo"),
+            Self::Fusion => Symbol::qualified("rank", "fusion-demo"),
         }
     }
 }
@@ -80,6 +85,7 @@ impl Callable for RankCookbookFunction {
             RankCookbookFunctionKind::SpaceCoordinate => space_coordinate_demo(),
             RankCookbookFunctionKind::Retrieve => rank_retrieve_demo(),
             RankCookbookFunctionKind::RecommendationRanking => recommendation_ranking_demo(),
+            RankCookbookFunctionKind::Fusion => rank_fusion_demo(),
         };
         cx.factory().expr(expr)
     }
@@ -113,7 +119,7 @@ pub(crate) fn rank_cookbook_exports() -> Vec<Export> {
 mod tests {
     use std::sync::Arc;
 
-    use sim_kernel::{DefaultFactory, EagerPolicy, Expr};
+    use sim_kernel::{DefaultFactory, EagerPolicy, Expr, HandleSeed};
 
     use crate::install_rank_lib;
 
@@ -121,7 +127,11 @@ mod tests {
 
     #[test]
     fn rank_cookbook_callables_return_recipe_expressions() {
-        let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+        let mut cx = Cx::new(
+            Arc::new(EagerPolicy),
+            Arc::new(DefaultFactory),
+            HandleSeed::new(0x5241_4e4b),
+        );
         install_rank_lib(&mut cx).unwrap();
 
         let value = cx

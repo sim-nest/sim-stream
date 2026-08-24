@@ -70,6 +70,15 @@ claims_specimens = [
 ]
 
 [[route]]
+id = "route/fuse-ranked-results"
+task = "Fuse bounded ranked result lists deterministically"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-stream/stream-protocol-helpers", why = "sim-lib-rank owns provider-neutral reciprocal-rank fusion and its inspectable receipt." },
+  { specimen = "spec-recipe/sim-lib-rank/rank-fusion", why = "The three-list recipe demonstrates stable keys, weighted sources, deterministic output, and receipt ownership." },
+]
+
+[[route]]
 id = "route/add-stream-protocol-helper"
 task = "Add a stream protocol helper"
 audiences = ["code", "framework"]

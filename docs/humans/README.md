@@ -31,6 +31,10 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 ## Recipes
 
 - `crates/sim-lib-rank/recipes/01-basics/chapter.toml`
+- `crates/sim-lib-rank/recipes/01-basics/rank-fusion/expected.txt`
+- `crates/sim-lib-rank/recipes/01-basics/rank-fusion/purpose.md`
+- `crates/sim-lib-rank/recipes/01-basics/rank-fusion/recipe.toml`
+- `crates/sim-lib-rank/recipes/01-basics/rank-fusion/setup.siml`
 - `crates/sim-lib-rank/recipes/01-basics/rank-retrieve/purpose.md`
 - `crates/sim-lib-rank/recipes/01-basics/rank-retrieve/recipe.toml`
 - `crates/sim-lib-rank/recipes/01-basics/rank-retrieve/setup.siml`

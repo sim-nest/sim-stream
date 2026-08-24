@@ -22,7 +22,11 @@ fn nat_pair_space() -> RankSpace {
 }
 
 fn cx() -> sim_kernel::Cx {
-    sim_kernel::Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory))
+    sim_kernel::Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x5241_4e4b),
+    )
 }
 
 #[test]
