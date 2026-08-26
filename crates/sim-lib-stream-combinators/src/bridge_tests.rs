@@ -226,7 +226,11 @@ fn content_ref_packet(message: &str, tick: u8) -> StreamItem {
 }
 
 fn tick_ref(index: u8) -> Tick {
-    let mut cx = sim_kernel::Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let mut cx = sim_kernel::Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x1511_36b3_a5d6_54fb),
+    );
     test_clock()
         .tick_for_index(&mut cx, ClockIndex::new(u64::from(index)))
         .unwrap()

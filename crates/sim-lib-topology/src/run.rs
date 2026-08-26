@@ -1,5 +1,7 @@
 //! Topology run-state and sequential core scheduler.
 
+mod event;
+
 use std::collections::VecDeque;
 
 use sim_kernel::{Cx, Error, Expr, Result, Symbol};
@@ -67,48 +69,6 @@ pub struct TopologyEvent {
     pub edge_index: Option<usize>,
     /// Optional event payload.
     pub expr: Option<Expr>,
-}
-
-impl TopologyEvent {
-    fn node(kind: TopologyEventKind, node_index: usize) -> Self {
-        Self {
-            kind,
-            node_index,
-            port: None,
-            edge_index: None,
-            expr: None,
-        }
-    }
-
-    fn node_expr(kind: TopologyEventKind, node_index: usize, expr: Expr) -> Self {
-        Self {
-            kind,
-            node_index,
-            port: None,
-            edge_index: None,
-            expr: Some(expr),
-        }
-    }
-
-    fn port(kind: TopologyEventKind, node_index: usize, port: Symbol, expr: Expr) -> Self {
-        Self {
-            kind,
-            node_index,
-            port: Some(port),
-            edge_index: None,
-            expr: Some(expr),
-        }
-    }
-
-    fn edge(node_index: usize, port: Symbol, edge_index: usize, expr: Expr) -> Self {
-        Self {
-            kind: TopologyEventKind::EdgeRouted,
-            node_index,
-            port: Some(port),
-            edge_index: Some(edge_index),
-            expr: Some(expr),
-        }
-    }
 }
 
 /// Structured budget exhaustion details for a topology run.

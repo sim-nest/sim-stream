@@ -75,7 +75,7 @@ task = "Fuse bounded ranked result lists deterministically"
 audiences = ["code", "framework"]
 steps = [
   { feature = "feature/sim-stream/stream-protocol-helpers", why = "sim-lib-rank owns provider-neutral reciprocal-rank fusion and its inspectable receipt." },
-  { specimen = "spec-recipe/sim-lib-rank/rank-fusion", why = "The three-list recipe demonstrates stable keys, weighted sources, deterministic output, and receipt ownership." },
+  { specimen = "recipe/sim-stream/crates/sim-lib-rank/01-basics/rank-fusion", why = "The three-list recipe demonstrates stable keys, weighted sources, deterministic output, and receipt ownership." },
 ]
 
 [[route]]

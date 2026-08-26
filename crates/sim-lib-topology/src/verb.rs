@@ -64,7 +64,11 @@ pub fn run_core_node(
                             node.id.as_symbol()
                         ))
                     })?;
-                    predicate_accepts(cx, predicate, &item.expr)?
+                    if let Some(predicate) = state.bound_target {
+                        crate::run_predicate::bound_predicate_accepts(cx, predicate, &item.expr)?
+                    } else {
+                        predicate_accepts(cx, predicate, &item.expr)?
+                    }
                 }
             };
             let desired = if accepted { "true" } else { "false" };

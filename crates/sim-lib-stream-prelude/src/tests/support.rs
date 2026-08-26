@@ -15,7 +15,11 @@ use sim_lib_stream_core::{
 use crate::{StreamHandle, install_stream_prelude_lib};
 
 pub(super) fn cx(capabilities: &[CapabilityName]) -> Cx {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x6478_785f_aaf5_44b5),
+    );
     install_lisp_codec(&mut cx);
     install_stream_prelude_lib(&mut cx).unwrap();
     for capability in capabilities {
