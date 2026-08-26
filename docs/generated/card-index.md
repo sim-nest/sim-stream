@@ -5,7 +5,7 @@
 | Card | Kind | Owner | Summary |
 | --- | --- | --- | --- |
 | `browse/catalog` | `browse-root` | `workspace` | root browse catalog |
-| `cookbook/rank` | `cookbook-recipe` | `sim-lib-rank` | Rank spaces, nodes, coordinates, and deterministic traversal. |
+| `cookbook/rank` | `cookbook-recipe` | `sim-lib-rank` | Rank spaces, nodes, coordinates, deterministic traversal, and inspectable fusion. |
 | `cookbook/stream-audio` | `cookbook-recipe` | `sim-lib-stream-audio` | PCM specs, buffers, memory sources, and sinks. |
 | `cookbook/stream-clock` | `cookbook-recipe` | `sim-lib-stream-clock` | Clock charts, tick conversion, and tempo descriptors. |
 | `cookbook/stream-combinators` | `cookbook-recipe` | `sim-lib-stream-combinators` | Lazy stream transforms, recording, replay, and event algebra. |
