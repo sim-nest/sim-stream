@@ -124,7 +124,11 @@ fn replay_counterfactual_force_predicate_changes_output() {
 }
 
 fn runtime_cx() -> Cx {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(1),
+    );
     cx.grant(topology_run_capability());
     cx
 }

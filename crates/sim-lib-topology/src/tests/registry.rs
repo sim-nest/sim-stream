@@ -1,9 +1,4 @@
-use std::{
-    fs,
-    path::PathBuf,
-    sync::Arc,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::{fs, path::PathBuf, sync::Arc};
 
 use sim_kernel::{Args, Cx, DefaultFactory, EagerPolicy, Error, Expr, Symbol};
 
@@ -307,7 +302,11 @@ fn registry_runtime_load_source_accepts_table_value() {
 }
 
 fn test_cx() -> Cx {
-    Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory))
+    Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(1),
+    )
 }
 
 fn identity_graph(name: &str) -> crate::Graph {
@@ -453,20 +452,17 @@ fn expr_contains_string(expr: &Expr, expected: &str) -> bool {
 }
 
 fn write_package(label: &str, source: String) -> PathBuf {
-    let path = temp_path(label);
+    let path = modeled_package_path(label);
+    fs::create_dir_all(path.parent().expect("modeled package parent"))
+        .expect("create modeled package directory");
     fs::write(&path, source).expect("write package");
     path
 }
 
-fn temp_path(label: &str) -> PathBuf {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("clock")
-        .as_nanos();
-    std::env::temp_dir().join(format!(
-        "sim-topology-registry-{label}-{}-{nanos}.simtopo",
-        std::process::id()
-    ))
+fn modeled_package_path(label: &str) -> PathBuf {
+    PathBuf::from("target")
+        .join("model-inputs")
+        .join(format!("sim-topology-registry-{label}.simtopo"))
 }
 
 fn assert_capability(error: Error, expected: sim_kernel::CapabilityName) {

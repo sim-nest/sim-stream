@@ -1,15 +1,72 @@
 use std::{sync::Arc, time::Duration};
 
 use sim_kernel::{
-    Args, CapabilityName, Consistency, Cx, DefaultFactory, EagerPolicy, Error, EvalFabric,
-    EvalMode, EvalRequest, Expr, Symbol, eval_fabric_capability,
+    Args, Callable, CapabilityName, ClassRef, Consistency, Cx, DefaultFactory, EagerPolicy, Error,
+    EvalFabric, EvalMode, EvalRequest, Expr, Object, Result, Symbol, Value, eval_fabric_capability,
 };
 use sim_shape::{ExprKind, ExprKindShape, shape_value};
 
 use crate::{
-    Edge, Graph, Node, PortRef, TopologyConnection, connection_from_graph, install_topology_lib,
+    Edge, Graph, Node, PortRef, TopologyBindingDescriptor, TopologyBindings, TopologyConnection,
+    connection_from_graph, connection_from_graph_with_bindings, install_topology_lib,
     text::graph_to_expr, topology_run_capability, topology_site_symbol,
 };
+
+#[test]
+fn connection_uses_explicit_stable_node_binding() {
+    let mut cx = runtime_cx();
+    let mut graph = identity_graph();
+    graph.nodes.insert(1, Node::named("step", "call"));
+    graph.nodes[1].target = Some(Expr::Symbol(Symbol::qualified("missing", "ambient")));
+    graph.edges = vec![
+        Edge::new(0, PortRef::output("in"), PortRef::input("step")),
+        Edge::new(1, PortRef::output("step"), PortRef::input("out")),
+    ];
+    let value = cx.factory().opaque(Arc::new(EchoFn)).unwrap();
+    let mut bindings = TopologyBindings::new();
+    bindings.bind(
+        graph.nodes[1].id.clone(),
+        TopologyBindingDescriptor::for_node("test/echo-v1", &graph.nodes[1]),
+        value,
+    );
+    let connection = connection_from_graph_with_bindings(&mut cx, &graph, bindings).unwrap();
+    let output = connection
+        .request(&mut cx, Expr::String("bound".into()), None, vec![])
+        .unwrap();
+    assert_eq!(
+        output.object().as_expr(&mut cx).unwrap(),
+        Expr::String("bound".into())
+    );
+}
+
+struct EchoFn;
+
+impl Object for EchoFn {
+    fn display(&self, _cx: &mut Cx) -> Result<String> {
+        Ok("#<echo>".into())
+    }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+impl sim_kernel::ObjectCompat for EchoFn {
+    fn class(&self, cx: &mut Cx) -> Result<ClassRef> {
+        cx.factory().nil()
+    }
+    fn as_callable(&self) -> Option<&dyn Callable> {
+        Some(self)
+    }
+}
+
+impl Callable for EchoFn {
+    fn call(&self, _cx: &mut Cx, args: Args) -> Result<Value> {
+        args.values()
+            .first()
+            .cloned()
+            .ok_or_else(|| Error::Eval("echo expects input".into()))
+    }
+}
 
 #[test]
 fn topology_connection_can_be_used_as_eval_fabric() {
@@ -121,7 +178,11 @@ fn topology_connection_requires_client_capabilities() {
 
 #[test]
 fn topology_connection_requires_topology_run_capability() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(1),
+    );
     let connection = connection_from_graph(&mut cx, &identity_graph()).expect("connection");
 
     let error = connection
@@ -218,7 +279,11 @@ fn topology_connection_rejects_deadline() {
 }
 
 fn runtime_cx() -> Cx {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(1),
+    );
     cx.grant(eval_fabric_capability());
     cx.grant(topology_run_capability());
     cx

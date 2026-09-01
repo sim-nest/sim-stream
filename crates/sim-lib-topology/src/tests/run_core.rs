@@ -16,6 +16,146 @@ use crate::{
 };
 
 #[test]
+fn continuation_step_resume_is_identical_to_uninterrupted_run() {
+    let mut cx = runtime_cx();
+    let graph = in_out_graph("resume-linear");
+    let plan = compile_graph(&mut cx, &graph).expect("compiled graph");
+    let input = Expr::String("seed".to_owned());
+
+    let mut uninterrupted = TopologyRun::new(&graph, &plan, input.clone()).expect("run");
+    uninterrupted.run(&mut cx).expect("uninterrupted");
+
+    let mut stepped = TopologyRun::new(&graph, &plan, input).expect("run");
+    stepped.step(&mut cx).expect("one item");
+    let encoded = stepped.continuation().to_expr();
+    let decoded = crate::TopologyContinuation::from_expr(&encoded).expect("decoded continuation");
+    assert_eq!(decoded.to_expr(), encoded);
+    let mut resumed = TopologyRun::resume(&graph, &plan, decoded, crate::TopologyBindings::new())
+        .expect("resumed");
+    resumed.run(&mut cx).expect("completed resume");
+
+    assert_eq!(
+        resumed.continuation().to_expr(),
+        uninterrupted.continuation().to_expr()
+    );
+}
+
+#[test]
+fn continuation_rejects_changed_graph_before_running() {
+    let mut cx = runtime_cx();
+    let graph = in_out_graph("resume-source");
+    let plan = compile_graph(&mut cx, &graph).expect("compiled graph");
+    let continuation = TopologyRun::new(&graph, &plan, Expr::Nil)
+        .expect("run")
+        .continuation();
+    let changed = in_out_graph("changed-source");
+    let changed_plan = compile_graph(&mut cx, &changed).expect("changed plan");
+
+    let error = TopologyRun::resume(
+        &changed,
+        &changed_plan,
+        continuation,
+        crate::TopologyBindings::new(),
+    )
+    .err()
+    .expect("fingerprint rejected");
+    assert!(error.to_string().contains("fingerprint mismatch"));
+}
+
+#[test]
+fn runtime_binding_precedes_ambient_target_and_is_required_on_resume() {
+    let mut cx = runtime_cx();
+    register_prefix(&mut cx, "ambient", "ambient:");
+    register_prefix(&mut cx, "bound", "bound:");
+    let graph = call_graph(
+        "bound-call",
+        Expr::Symbol(Symbol::qualified("test", "ambient")),
+    );
+    let plan = compile_graph(&mut cx, &graph).expect("compiled graph");
+    let value =
+        crate::adapter::resolve_target(&mut cx, &Expr::Symbol(Symbol::qualified("test", "bound")))
+            .expect("bound value");
+    let mut bindings = crate::TopologyBindings::new();
+    bindings.bind(
+        "call",
+        crate::TopologyBindingDescriptor::for_node("bound-v1", &graph.nodes[1]),
+        value,
+    );
+    let mut run = TopologyRun::new(&graph, &plan, Expr::String("seed".into())).expect("run");
+    run.set_bindings(bindings);
+    run.step(&mut cx).expect("input step");
+    let continuation = run.continuation();
+    assert!(
+        TopologyRun::resume(
+            &graph,
+            &plan,
+            continuation.clone(),
+            crate::TopologyBindings::new()
+        )
+        .is_err()
+    );
+
+    let value =
+        crate::adapter::resolve_target(&mut cx, &Expr::Symbol(Symbol::qualified("test", "bound")))
+            .expect("bound value");
+    let mut resumed_bindings = crate::TopologyBindings::new();
+    resumed_bindings.bind(
+        "call",
+        crate::TopologyBindingDescriptor::for_node("bound-v1", &graph.nodes[1]),
+        value,
+    );
+    let mut resumed =
+        TopologyRun::resume(&graph, &plan, continuation, resumed_bindings).expect("resume");
+    resumed.run(&mut cx).expect("bound run");
+    assert_eq!(resumed.output_expr(), Expr::String("bound:seed".into()));
+}
+
+#[test]
+fn continuation_rejects_malformed_queue_and_widened_counter() {
+    let mut cx = runtime_cx();
+    let graph = in_out_graph("invalid-resume");
+    let plan = compile_graph(&mut cx, &graph).expect("compiled graph");
+    let encoded = TopologyRun::new(&graph, &plan, Expr::Nil)
+        .expect("run")
+        .continuation()
+        .to_expr();
+
+    let mut bad_queue = encoded.clone();
+    let Expr::Map(root) = &mut bad_queue else {
+        unreachable!()
+    };
+    let Expr::List(queue) = map_value_mut(root, "queue") else {
+        unreachable!()
+    };
+    let Expr::List(first) = &mut queue[0] else {
+        unreachable!()
+    };
+    first[0] = Expr::String("999".into());
+    let decoded = crate::TopologyContinuation::from_expr(&bad_queue).expect("structurally decoded");
+    assert!(TopologyRun::resume(&graph, &plan, decoded, crate::TopologyBindings::new()).is_err());
+
+    let mut widened = encoded;
+    let Expr::Map(root) = &mut widened else {
+        unreachable!()
+    };
+    let Expr::Map(budget) = map_value_mut(root, "budget") else {
+        unreachable!()
+    };
+    *map_value_mut(budget, "steps") = Expr::String("999999".into());
+    let decoded = crate::TopologyContinuation::from_expr(&widened).expect("structurally decoded");
+    assert!(TopologyRun::resume(&graph, &plan, decoded, crate::TopologyBindings::new()).is_err());
+}
+
+fn map_value_mut<'a>(entries: &'a mut [(Expr, Expr)], name: &str) -> &'a mut Expr {
+    entries
+        .iter_mut()
+        .find_map(|(key, value)| {
+            matches!(key, Expr::Symbol(symbol) if symbol.name.as_ref() == name).then_some(value)
+        })
+        .expect("map field")
+}
+
+#[test]
 fn run_core_in_to_out_returns_input_and_events() {
     let mut cx = runtime_cx();
     let graph = in_out_graph("core-in-out");
@@ -224,7 +364,11 @@ fn run_core_rejects_partial_exhaustion_policy() {
 }
 
 fn runtime_cx() -> Cx {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(1),
+    );
     cx.grant(topology_run_capability());
     cx
 }

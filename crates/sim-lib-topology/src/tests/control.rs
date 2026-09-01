@@ -9,7 +9,9 @@ use sim_kernel::{
 };
 
 use crate::{
-    Cell, Edge, Graph, Node, PortRef, compile_graph, run::run_graph, topology_run_capability,
+    Cell, Edge, Graph, Node, PortRef, TopologyBindingDescriptor, TopologyBindings, compile_graph,
+    run::{run_graph, run_graph_with_bindings},
+    topology_run_capability,
 };
 
 #[test]
@@ -32,6 +34,36 @@ fn control_branch_false_routes_false_port() {
     let output = run_graph(&mut cx, &graph, &plan, Expr::Bool(false)).expect("executed graph");
 
     assert_eq!(output, Expr::Bool(false));
+}
+
+#[test]
+fn control_branch_uses_bound_predicate_before_ambient_symbol() {
+    let mut cx = runtime_cx();
+    let ambient_calls = register_counting_predicate(&mut cx, "ambient", u32::MAX);
+    let bound_calls = register_counting_predicate(&mut cx, "bound", 0);
+    let mut graph = branch_graph("bound-branch", "true");
+    graph.nodes[1].options.push((
+        Symbol::new("when"),
+        Expr::Symbol(Symbol::qualified("test", "ambient")),
+    ));
+    let plan = compile_graph(&mut cx, &graph).expect("compiled graph");
+    let bound =
+        crate::adapter::resolve_target(&mut cx, &Expr::Symbol(Symbol::qualified("test", "bound")))
+            .expect("bound predicate");
+    let mut bindings = TopologyBindings::new();
+    bindings.bind(
+        "gate",
+        TopologyBindingDescriptor::for_node("test/bound-v1", &graph.nodes[1]),
+        bound,
+    );
+    let input = Expr::String("payload".to_owned());
+
+    let output = run_graph_with_bindings(&mut cx, &graph, &plan, input.clone(), bindings)
+        .expect("executed graph");
+
+    assert_eq!(output, input);
+    assert_eq!(ambient_calls.load(Ordering::SeqCst), 0);
+    assert_eq!(bound_calls.load(Ordering::SeqCst), 1);
 }
 
 #[test]
@@ -98,7 +130,11 @@ fn control_budget_exhaustion_returns_topology_error() {
 }
 
 fn runtime_cx() -> Cx {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(1),
+    );
     cx.grant(topology_run_capability());
     cx
 }

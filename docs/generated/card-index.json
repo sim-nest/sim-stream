@@ -11,7 +11,7 @@
       "id": "cookbook/rank",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-rank",
-      "summary": "Rank spaces, nodes, coordinates, and deterministic traversal."
+      "summary": "Rank spaces, nodes, coordinates, deterministic traversal, and inspectable fusion."
     },
     {
       "id": "cookbook/stream-audio",

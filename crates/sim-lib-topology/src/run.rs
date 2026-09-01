@@ -1,15 +1,17 @@
 //! Topology run-state and sequential core scheduler.
 
+mod event;
+
 use std::collections::VecDeque;
 
 use sim_kernel::{Cx, Error, Expr, Result, Symbol};
 
 use crate::{
-    Budget, BudgetExhausted, CompiledGraph, Edge, Graph, Node, Port,
+    Budget, CompiledGraph, Edge, Graph, Node,
     adapter::{call_target_expr, resolve_target},
     capability::{require_graph_capabilities, topology_run_capability},
-    run_contract::check_expr_shape,
-    verb::{VerbAction, run_core_node},
+    run_contract::{check_expr_shape, input_port, output_port},
+    verb::{CoreRunState, VerbAction, run_core_node},
 };
 
 pub use crate::{
@@ -69,48 +71,6 @@ pub struct TopologyEvent {
     pub expr: Option<Expr>,
 }
 
-impl TopologyEvent {
-    fn node(kind: TopologyEventKind, node_index: usize) -> Self {
-        Self {
-            kind,
-            node_index,
-            port: None,
-            edge_index: None,
-            expr: None,
-        }
-    }
-
-    fn node_expr(kind: TopologyEventKind, node_index: usize, expr: Expr) -> Self {
-        Self {
-            kind,
-            node_index,
-            port: None,
-            edge_index: None,
-            expr: Some(expr),
-        }
-    }
-
-    fn port(kind: TopologyEventKind, node_index: usize, port: Symbol, expr: Expr) -> Self {
-        Self {
-            kind,
-            node_index,
-            port: Some(port),
-            edge_index: None,
-            expr: Some(expr),
-        }
-    }
-
-    fn edge(node_index: usize, port: Symbol, edge_index: usize, expr: Expr) -> Self {
-        Self {
-            kind: TopologyEventKind::EdgeRouted,
-            node_index,
-            port: Some(port),
-            edge_index: Some(edge_index),
-            expr: Some(expr),
-        }
-    }
-}
-
 /// Structured budget exhaustion details for a topology run.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TopologyBudgetError {
@@ -157,7 +117,7 @@ impl TopologyBudgetError {
 /// Runtime budget counters for one topology run.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BudgetLedger {
-    limits: Budget,
+    pub(crate) limits: Budget,
     /// Scheduler steps consumed.
     pub steps: u32,
     /// Per-node visit counts.
@@ -249,6 +209,11 @@ impl BudgetLedger {
     }
 }
 
+pub use crate::run_continuation::{
+    TopologyBindingDescriptor, TopologyBindings, TopologyContinuation, TopologyProgress,
+};
+use crate::run_continuation::{topology_fingerprint, validate_budget_policy};
+
 /// Live state for a sequential topology run.
 pub struct TopologyRun<'a> {
     graph: &'a Graph,
@@ -260,6 +225,8 @@ pub struct TopologyRun<'a> {
     /// Budget counters for this run.
     pub budget: BudgetLedger,
     events: Vec<TopologyEvent>,
+    bindings: TopologyBindings,
+    bindings_validated: bool,
 }
 
 impl<'a> TopologyRun<'a> {
@@ -275,6 +242,8 @@ impl<'a> TopologyRun<'a> {
             nonlinear: TopologyNonlinearState::new(plan.nodes.len()),
             budget: BudgetLedger::new(graph.budget.clone(), plan.nodes.len(), plan.edges.len()),
             events: Vec::new(),
+            bindings: TopologyBindings::new(),
+            bindings_validated: false,
         };
         for input_node in &plan.input_nodes {
             run.enqueue(WorkItem {
@@ -288,43 +257,221 @@ impl<'a> TopologyRun<'a> {
 
     /// Runs until the queue is exhausted.
     pub fn run(&mut self, cx: &mut Cx) -> Result<()> {
-        while let Some(item) = self.queue.pop_front() {
-            self.budget.record_step()?;
-            self.budget.record_node_visit(item.node_index)?;
-            self.check_graph_input(cx, &item)?;
-            self.check_node_input(cx, &item)?;
-            self.events.push(TopologyEvent::node(
-                TopologyEventKind::NodeStarted,
-                item.node_index,
-            ));
+        loop {
+            match self.step(cx)? {
+                TopologyProgress::Advanced | TopologyProgress::Output(_) => {}
+                TopologyProgress::Exhausted | TopologyProgress::Complete => return Ok(()),
+            }
+        }
+    }
 
-            let actions = run_core_node(
-                cx,
-                self.graph,
-                self.plan,
-                &mut self.budget,
-                &mut self.cells,
-                &mut self.nonlinear,
-                &item,
-            )?;
-            for action in actions {
-                match action {
-                    VerbAction::Emit(packet) => {
-                        self.check_node_output(cx, &packet)?;
-                        self.events.push(TopologyEvent::port(
-                            TopologyEventKind::PortEmitted,
-                            packet.node_index,
-                            packet.port.clone(),
-                            packet.expr.clone(),
-                        ));
-                        self.route_packet(cx, packet)?;
-                    }
-                    VerbAction::Complete { node_index, expr } => {
-                        self.push_output(cx, node_index, expr)?
-                    }
+    /// Advances exactly one scheduler work item.
+    pub fn step(&mut self, cx: &mut Cx) -> Result<TopologyProgress> {
+        self.validate_bindings()?;
+        let Some(item) = self.queue.pop_front() else {
+            return Ok(if self.outputs.is_empty() {
+                TopologyProgress::Exhausted
+            } else {
+                TopologyProgress::Complete
+            });
+        };
+        let output_start = self.outputs.len();
+        self.budget.record_step()?;
+        self.budget.record_node_visit(item.node_index)?;
+        self.check_graph_input(cx, &item)?;
+        self.check_node_input(cx, &item)?;
+        self.events.push(TopologyEvent::node(
+            TopologyEventKind::NodeStarted,
+            item.node_index,
+        ));
+
+        let node = self.node(item.node_index)?;
+        let bound = self.bindings.get(&node.id).map(|(_, value)| value);
+        let actions = run_core_node(
+            cx,
+            self.graph,
+            self.plan,
+            CoreRunState {
+                budget: &mut self.budget,
+                cells: &mut self.cells,
+                nonlinear: &mut self.nonlinear,
+                bound_target: bound,
+            },
+            &item,
+        )?;
+        for action in actions {
+            match action {
+                VerbAction::Emit(packet) => {
+                    self.check_node_output(cx, &packet)?;
+                    self.events.push(TopologyEvent::port(
+                        TopologyEventKind::PortEmitted,
+                        packet.node_index,
+                        packet.port.clone(),
+                        packet.expr.clone(),
+                    ));
+                    self.route_packet(cx, packet)?;
+                }
+                VerbAction::Complete { node_index, expr } => {
+                    self.push_output(cx, node_index, expr)?
                 }
             }
         }
+        let emitted = self.outputs[output_start..].to_vec();
+        if emitted.is_empty() {
+            Ok(TopologyProgress::Advanced)
+        } else {
+            Ok(TopologyProgress::Output(emitted))
+        }
+    }
+
+    /// Installs live bindings. Required descriptor identities are checked before execution.
+    pub fn set_bindings(&mut self, bindings: TopologyBindings) {
+        self.bindings = bindings;
+        self.bindings_validated = false;
+    }
+
+    /// Seals all scheduler state needed to resume at the next work item.
+    pub fn continuation(&self) -> TopologyContinuation {
+        TopologyContinuation {
+            fingerprint: topology_fingerprint(self.graph, self.plan),
+            queue: self.queue.iter().cloned().collect(),
+            outputs: self.outputs.clone(),
+            cells: self.cells.values().clone(),
+            nonlinear: self.nonlinear.to_expr(),
+            budget: self.budget.clone(),
+            events: self.events.clone(),
+            bindings: self.bindings.descriptors(),
+        }
+    }
+
+    /// Restores a sealed continuation and validates it before any target can run.
+    pub fn resume(
+        graph: &'a Graph,
+        plan: &'a CompiledGraph,
+        continuation: TopologyContinuation,
+        bindings: TopologyBindings,
+    ) -> Result<Self> {
+        if continuation.fingerprint != topology_fingerprint(graph, plan) {
+            return Err(Error::Eval(
+                "topology continuation: graph fingerprint mismatch".into(),
+            ));
+        }
+        if continuation
+            .queue
+            .iter()
+            .any(|item| item.node_index >= plan.nodes.len())
+        {
+            return Err(Error::Eval(
+                "topology continuation: malformed queue entry".into(),
+            ));
+        }
+        if continuation.budget.node_visits.len() != plan.nodes.len()
+            || continuation.budget.edge_visits.len() != plan.edges.len()
+            || continuation.budget.steps > graph.budget.max_steps
+            || continuation.budget.outputs > graph.budget.max_outputs
+            || continuation
+                .budget
+                .node_visits
+                .iter()
+                .any(|v| *v > graph.budget.max_node_visits)
+            || continuation
+                .budget
+                .edge_visits
+                .iter()
+                .any(|v| *v > graph.budget.max_edge_visits)
+        {
+            return Err(Error::Eval(
+                "topology continuation: widened or malformed counters".into(),
+            ));
+        }
+        for (node, expected) in &continuation.bindings {
+            let Some(source) = graph.nodes.iter().find(|source| &source.id == node) else {
+                return Err(Error::Eval(
+                    "topology continuation: unknown node binding".into(),
+                ));
+            };
+            if expected.role != source.role || expected.options != source.options {
+                return Err(Error::Eval(format!(
+                    "topology continuation: binding static context mismatch {}",
+                    node.as_symbol()
+                )));
+            }
+            let Some((actual, _)) = bindings.get(node) else {
+                return Err(Error::Eval(format!(
+                    "topology continuation: missing live binding {}",
+                    node.as_symbol()
+                )));
+            };
+            if actual != expected {
+                return Err(Error::Eval(format!(
+                    "topology continuation: binding identity mismatch {}",
+                    node.as_symbol()
+                )));
+            }
+        }
+        if bindings
+            .entries
+            .keys()
+            .any(|node| !graph.nodes.iter().any(|n| &n.id == node))
+            || continuation
+                .bindings
+                .keys()
+                .any(|node| !graph.nodes.iter().any(|n| &n.id == node))
+        {
+            return Err(Error::Eval(
+                "topology continuation: unknown node binding".into(),
+            ));
+        }
+        let cells = TopologyCells::restore(graph, continuation.cells)?;
+        let nonlinear =
+            TopologyNonlinearState::from_expr(&continuation.nonlinear, plan.nodes.len())
+                .map_err(|e| Error::Eval(format!("topology continuation: {e}")))?;
+        Ok(Self {
+            graph,
+            plan,
+            queue: continuation.queue.into(),
+            outputs: continuation.outputs,
+            cells,
+            nonlinear,
+            budget: continuation.budget,
+            events: continuation.events,
+            bindings,
+            bindings_validated: true,
+        })
+    }
+
+    fn validate_bindings(&mut self) -> Result<()> {
+        if self.bindings_validated {
+            return Ok(());
+        }
+        for node in self.bindings.entries.keys() {
+            if !self
+                .graph
+                .nodes
+                .iter()
+                .any(|candidate| &candidate.id == node)
+            {
+                return Err(Error::Eval(format!(
+                    "topology binding: unknown node {}",
+                    node.as_symbol()
+                )));
+            }
+        }
+        for (id, (descriptor, _)) in &self.bindings.entries {
+            let node = self
+                .graph
+                .nodes
+                .iter()
+                .find(|node| &node.id == id)
+                .expect("binding node checked");
+            if descriptor.role != node.role || descriptor.options != node.options {
+                return Err(Error::Eval(format!(
+                    "topology binding: static context mismatch {}",
+                    id.as_symbol()
+                )));
+            }
+        }
+        self.bindings_validated = true;
         Ok(())
     }
 
@@ -481,9 +628,21 @@ impl<'a> TopologyRun<'a> {
 
 /// Runs a compiled graph with one input expression.
 pub fn run_graph(cx: &mut Cx, graph: &Graph, plan: &CompiledGraph, input: Expr) -> Result<Expr> {
+    run_graph_with_bindings(cx, graph, plan, input, TopologyBindings::new())
+}
+
+/// Runs a compiled graph with one input expression and explicit live node bindings.
+pub fn run_graph_with_bindings(
+    cx: &mut Cx,
+    graph: &Graph,
+    plan: &CompiledGraph,
+    input: Expr,
+    bindings: TopologyBindings,
+) -> Result<Expr> {
     cx.require(&topology_run_capability())?;
     require_graph_capabilities(cx, graph)?;
     let mut run = TopologyRun::new(graph, plan, input)?;
+    run.set_bindings(bindings);
     run.run(cx)?;
     Ok(run.output_expr())
 }
@@ -509,26 +668,4 @@ fn route_edge_expr(cx: &mut Cx, edge: &crate::Edge, input: Expr) -> Result<Expr>
     } else {
         Ok(transformed)
     }
-}
-
-fn input_port<'a>(node: &'a Node, name: &Symbol) -> Option<&'a Port> {
-    node.inputs.iter().find(|port| port.name == *name)
-}
-
-fn output_port<'a>(node: &'a Node, name: &Symbol) -> Option<&'a Port> {
-    node.outputs.iter().find(|port| port.name == *name)
-}
-
-fn validate_budget_policy(budget: &Budget) -> Result<()> {
-    if budget.deadline_ms.is_some() {
-        return Err(Error::Eval(
-            "topology run: deadline_ms budget policy is unsupported".to_owned(),
-        ));
-    }
-    if budget.on_exhausted == BudgetExhausted::Partial {
-        return Err(Error::Eval(
-            "topology run: partial exhaustion policy is unsupported".to_owned(),
-        ));
-    }
-    Ok(())
 }

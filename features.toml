@@ -19,7 +19,7 @@ title = "Repository documentation surface"
 summary = "Publish generated package, card, rustdoc, and index facts for the stream and topology crates."
 owner = "crate/xtask"
 audiences = ["code"]
-guidance = "Use this row when checking the generated documentation and index lane for stream helpers."
+guidance = "Use this host-tool row when checking the generated documentation and index lane for stream helpers; it is OS/HW-neutral and remains outside every product closure."
 claims_anchors = [
   "anchor/cli/xtask",
   "anchor/crate/xtask",
@@ -54,8 +54,6 @@ claims_anchors = [
   "anchor/crate/sim-lib-stream-wrist",
   "anchor/crate/sim-lib-stream-xr",
   "anchor/crate/sim-lib-topology",
-  "anchor/export/sim-lib-stream-core/packet/pcm.rs",
-  "anchor/export/sim-lib-stream-core/shape/structural.rs",
   "anchor/runtime-lib/sim-lib-rank/rank-lib",
   "anchor/runtime-lib/sim-lib-stream-core/stream-core-shapes-lib",
   "anchor/runtime-lib/sim-lib-stream-device/device-stream-base-lib",
@@ -69,6 +67,15 @@ claims_surfaces = [
 ]
 claims_specimens = [
   "spec-test/sim-stream/crates/sim-lib-stream-core/src/read_construct",
+]
+
+[[route]]
+id = "route/fuse-ranked-results"
+task = "Fuse bounded ranked result lists deterministically"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-stream/stream-protocol-helpers", why = "sim-lib-rank owns provider-neutral reciprocal-rank fusion and its inspectable receipt." },
+  { specimen = "recipe/sim-stream/crates/sim-lib-rank/01-basics/rank-fusion", why = "The three-list recipe demonstrates stable keys, weighted sources, deterministic output, and receipt ownership." },
 ]
 
 [[route]]

@@ -1,6 +1,6 @@
 [package]
 name = "sim-lib-stream-combinators"
-version = "0.1.3"
+version = "0.2.0"
 edition = "2024"
 license = "MPL-2.0"
 description = "Lazy in-memory combinators for SIM stream packets."
@@ -10,15 +10,15 @@ repository = "https://github.com/sim-nest/sim-stream"
 homepage = "https://github.com/sim-nest/sim-stream"
 
 [dependencies]
-sim-cookbook = { version = "0.2.0" }
-sim-kernel = { version = "0.2.0" }
-sim-lib-stream-core = { version = "0.1.4", path = "../sim-lib-stream-core" }
+sim-cookbook = { version = "0.3.0" }
+sim-kernel = { version = "0.3.0" }
+sim-lib-stream-core = { version = "0.2.0", path = "../sim-lib-stream-core" }
 
 [dev-dependencies]
-sim-lib-stream-clock = { version = "0.1.2", path = "../sim-lib-stream-clock" }
+sim-lib-stream-clock = { version = "0.2.0", path = "../sim-lib-stream-clock" }
 
 [lints]
 workspace = true
 
 [build-dependencies]
-sim-cookbook = { version = "0.2.0" }
+sim-cookbook-build = { version = "0.1.0" }

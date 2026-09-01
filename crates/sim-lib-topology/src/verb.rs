@@ -1,6 +1,6 @@
 //! Built-in topology verb execution.
 
-use sim_kernel::{Cx, Error, Expr, Result, Symbol};
+use sim_kernel::{Cx, Error, Expr, Result, Symbol, Value};
 
 use crate::{
     CompiledGraph, Graph,
@@ -25,14 +25,24 @@ pub enum VerbAction {
     },
 }
 
+/// Mutable and bound state supplied to one core-node execution.
+pub struct CoreRunState<'a> {
+    /// Run budget ledger.
+    pub budget: &'a mut BudgetLedger,
+    /// Run-local cells.
+    pub cells: &'a mut TopologyCells,
+    /// Run-local nonlinear state.
+    pub nonlinear: &'a mut TopologyNonlinearState,
+    /// Optional caller-bound target for this node.
+    pub bound_target: Option<&'a Value>,
+}
+
 /// Runs one built-in topology verb.
 pub fn run_core_node(
     cx: &mut Cx,
     graph: &Graph,
     plan: &CompiledGraph,
-    budget: &mut BudgetLedger,
-    cells: &mut TopologyCells,
-    nonlinear: &mut TopologyNonlinearState,
+    state: CoreRunState<'_>,
     item: &WorkItem,
 ) -> Result<Vec<VerbAction>> {
     let node = &graph.nodes[plan.nodes[item.node_index].source_index];
@@ -54,7 +64,11 @@ pub fn run_core_node(
                             node.id.as_symbol()
                         ))
                     })?;
-                    predicate_accepts(cx, predicate, &item.expr)?
+                    if let Some(predicate) = state.bound_target {
+                        crate::run_predicate::bound_predicate_accepts(cx, predicate, &item.expr)?
+                    } else {
+                        predicate_accepts(cx, predicate, &item.expr)?
+                    }
                 }
             };
             let desired = if accepted { "true" } else { "false" };
@@ -67,24 +81,33 @@ pub fn run_core_node(
             };
             emit(item.node_index, port, item.expr.clone())
         }
-        "cell" => run_cell_node(cx, cells, node, item),
-        "merge" => run_merge_node(plan, budget, nonlinear, node, item),
-        "race" => run_race_node(cx, nonlinear, node, item),
-        "quorum" => run_quorum_node(cx, nonlinear, node, item),
-        "reduce" => run_reduce_node(cx, plan, nonlinear, node, item),
+        "cell" => run_cell_node(cx, state.cells, node, item),
+        "merge" => run_merge_node(plan, state.budget, state.nonlinear, node, item),
+        "race" => run_race_node(cx, state.nonlinear, node, item),
+        "quorum" => run_quorum_node(cx, state.nonlinear, node, item),
+        "reduce" => run_reduce_node(cx, plan, state.nonlinear, node, item),
         "patch" => run_patch_node(cx, node, item),
         "call" => {
-            let target = node.target.as_ref().ok_or_else(|| {
-                Error::Eval(format!(
-                    "topology run: call node {} has no target",
-                    node.id.as_symbol()
-                ))
-            })?;
-            let target = resolve_target(cx, target)?;
+            let target = if let Some(target) = state.bound_target {
+                target.clone()
+            } else {
+                let target = node.target.as_ref().ok_or_else(|| {
+                    Error::Eval(format!(
+                        "topology run: call node {} has no target",
+                        node.id.as_symbol()
+                    ))
+                })?;
+                resolve_target(cx, target)?
+            };
             if target.object().as_eval_fabric().is_some() {
-                budget.record_child_run()?;
+                state.budget.record_child_run()?;
             }
-            let output = call_target_expr(cx, target, item.expr.clone())?;
+            let output = crate::adapter::TopologyAdapterRegistry::core().call(
+                cx,
+                &target,
+                item.expr.clone(),
+                node.role.as_ref(),
+            )?;
             emit(item.node_index, "out", output)
         }
         other => Err(Error::Eval(format!(

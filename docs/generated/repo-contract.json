@@ -11,7 +11,7 @@
       "id": "cookbook/rank",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-rank",
-      "summary": "Rank spaces, nodes, coordinates, and deterministic traversal."
+      "summary": "Rank spaces, nodes, coordinates, deterministic traversal, and inspectable fusion."
     },
     {
       "id": "cookbook/stream-audio",
@@ -143,7 +143,7 @@
       "descriptor": "topology/Package",
       "file": "crates/sim-lib-topology/src/site.rs",
       "kind": "handle",
-      "line": 20,
+      "line": 23,
       "reason": "live topology eval-fabric handle; reconstruct from topology/Package descriptor data"
     }
   ],
@@ -702,10 +702,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-15T01:30:25+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "17b8d68f611a25e6424ab05f020a7e6cee9dfc63",
+    "git_commit": "50df44de64a1e2fc6a92e9d8641c2ce93709c558",
     "repo": "sim-stream",
     "schema": "sim.provenance.v1",
-    "source_commit": "17b8d68f611a25e6424ab05f020a7e6cee9dfc63",
+    "source_commit": "50df44de64a1e2fc6a92e9d8641c2ce93709c558",
     "source_remote": "https://github.com/sim-nest/sim-stream",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -718,13 +718,14 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "2cda854391671de4",
+    "workspace_hash": "fff8e59b279b2717",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 283,
+    "workspace_hash_input_count": 288,
     "workspace_hash_inputs": [
       "Cargo.toml",
       "crates/sim-lib-rank/Cargo.toml",
       "crates/sim-lib-rank/build.rs",
+      "crates/sim-lib-rank/recipes/01-basics/rank-fusion/recipe.toml",
       "crates/sim-lib-rank/recipes/01-basics/rank-retrieve/recipe.toml",
       "crates/sim-lib-rank/recipes/01-basics/space-coordinate/recipe.toml",
       "crates/sim-lib-rank/recipes/30-agents/a30-018-recommendation/recipe.toml",
@@ -753,6 +754,8 @@
       "crates/sim-lib-rank/src/expr.rs",
       "crates/sim-lib-rank/src/expr_neighborhood.rs",
       "crates/sim-lib-rank/src/expr_tests.rs",
+      "crates/sim-lib-rank/src/fusion.rs",
+      "crates/sim-lib-rank/src/fusion_tests.rs",
       "crates/sim-lib-rank/src/grade.rs",
       "crates/sim-lib-rank/src/grade_compile.rs",
       "crates/sim-lib-rank/src/grade_tests.rs",
@@ -973,8 +976,10 @@
       "crates/sim-lib-topology/src/registry/runtime.rs",
       "crates/sim-lib-topology/src/registry.rs",
       "crates/sim-lib-topology/src/replay.rs",
+      "crates/sim-lib-topology/src/run/event.rs",
       "crates/sim-lib-topology/src/run.rs",
       "crates/sim-lib-topology/src/run_cells.rs",
+      "crates/sim-lib-topology/src/run_continuation.rs",
       "crates/sim-lib-topology/src/run_contract.rs",
       "crates/sim-lib-topology/src/run_nonlinear.rs",
       "crates/sim-lib-topology/src/run_predicate.rs",
@@ -1015,8 +1020,16 @@
       "card_id": "cookbook/rank",
       "group": "workspace",
       "package": "sim-lib-rank",
-      "recipe_count": 3,
+      "recipe_count": 4,
       "recipes": [
+        {
+          "card_id": "rank/01-basics/rank-fusion",
+          "codec": "lisp",
+          "id": "rank-fusion",
+          "package": "sim-lib-rank",
+          "recipe_toml": "crates/sim-lib-rank/recipes/01-basics/rank-fusion/recipe.toml",
+          "title": "Provider-neutral three-list fusion"
+        },
         {
           "card_id": "rank/01-basics/rank-retrieve",
           "codec": "lisp",
@@ -1042,7 +1055,7 @@
           "title": "Recommendation agent"
         }
       ],
-      "summary": "Rank spaces, nodes, coordinates, and deterministic traversal.",
+      "summary": "Rank spaces, nodes, coordinates, deterministic traversal, and inspectable fusion.",
       "title": "Rank"
     },
     {

@@ -2,7 +2,46 @@
 
 use sim_kernel::{Expr, NumberLiteral, Symbol};
 
-use crate::{EmbeddingStore, RankGrammar, RankSpace, retrieve_ids};
+use crate::{
+    EmbeddingStore, FusionLimits, RankGrammar, RankSpace, RankedList, reciprocal_rank_fusion,
+    retrieve_ids,
+};
+
+/// Build a provider-neutral three-list reciprocal-rank-fusion receipt.
+pub fn rank_fusion_demo() -> Expr {
+    let lists = [
+        ("semantic", 1.0, ["essay", "guide", "clip"]),
+        ("lexical", 1.0, ["guide", "essay", "clip"]),
+        ("freshness", 0.5, ["clip", "essay", "guide"]),
+    ]
+    .into_iter()
+    .map(|(source, weight, keys)| {
+        RankedList::new(
+            source,
+            weight,
+            keys.into_iter().map(str::to_owned).collect(),
+        )
+        .unwrap()
+    })
+    .collect();
+    let fusion = reciprocal_rank_fusion(lists, 60, FusionLimits::new(3, 9, 3).unwrap()).unwrap();
+    let mut ordered = vec![sym_plain("ordered")];
+    ordered.extend(fusion.items.into_iter().map(|item| sym_plain(&item.key)));
+    list(vec![
+        sym_plain("rank-fusion"),
+        list(vec![
+            sym_plain("sources"),
+            sym_plain("semantic"),
+            sym_plain("lexical"),
+            sym_plain("freshness"),
+        ]),
+        list(ordered),
+        list(vec![
+            sym_plain("receipt"),
+            sym_plain("all-contributions-recorded"),
+        ]),
+    ])
+}
 
 /// Build the modeled space/coordinate descriptor used by the cookbook recipe.
 pub fn space_coordinate_demo() -> Expr {

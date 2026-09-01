@@ -1,6 +1,6 @@
 //! Topology predicate evaluation.
 
-use sim_kernel::{Cx, Expr, Result};
+use sim_kernel::{Cx, Expr, Result, Value};
 use sim_shape::parse_shape_expr;
 
 use crate::adapter::{call_target_expr, resolve_target};
@@ -32,6 +32,15 @@ pub fn predicate_accepts(cx: &mut Cx, predicate: &Expr, input: &Expr) -> Result<
 
     let shape = parse_shape_expr(predicate)?;
     Ok(shape.check_expr(cx, input)?.accepted)
+}
+
+pub(crate) fn bound_predicate_accepts(
+    cx: &mut Cx,
+    predicate: &Value,
+    input: &Expr,
+) -> Result<bool> {
+    let output = call_target_expr(cx, predicate.clone(), input.clone())?;
+    Ok(expr_truth(&output))
 }
 
 fn expr_truth(expr: &Expr) -> bool {

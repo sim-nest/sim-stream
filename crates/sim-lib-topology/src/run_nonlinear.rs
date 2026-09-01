@@ -3,6 +3,7 @@
 use std::collections::{BTreeMap, VecDeque};
 
 use sim_kernel::{Expr, Symbol};
+use sim_value::build::entry as field;
 
 /// Mutable nonlinear node state for one topology run.
 #[derive(Clone, Debug)]
@@ -118,6 +119,152 @@ impl TopologyNonlinearState {
             state.quorum_done = true;
             true
         }
+    }
+
+    pub(crate) fn to_expr(&self) -> Expr {
+        Expr::List(self.nodes.iter().map(NodeNonlinearState::to_expr).collect())
+    }
+
+    pub(crate) fn from_expr(expr: &Expr, node_count: usize) -> Result<Self, String> {
+        let Expr::List(items) = expr else {
+            return Err("nonlinear state must be a list".into());
+        };
+        if items.len() != node_count {
+            return Err("nonlinear state node count mismatch".into());
+        }
+        Ok(Self {
+            nodes: items
+                .iter()
+                .map(NodeNonlinearState::from_expr)
+                .collect::<Result<_, _>>()?,
+        })
+    }
+}
+
+impl NodeNonlinearState {
+    fn to_expr(&self) -> Expr {
+        Expr::Map(vec![
+            field(
+                "merge",
+                Expr::List(self.merge_buffer.iter().map(|v| v.expr.clone()).collect()),
+            ),
+            field("merge-any-done", Expr::Bool(self.merge_any_done)),
+            field(
+                "latest",
+                Expr::Map(
+                    self.latest
+                        .iter()
+                        .map(|(k, v)| (Expr::Symbol(k.clone()), v.clone()))
+                        .collect(),
+                ),
+            ),
+            field("reduce-acc", self.reduce_acc.clone().unwrap_or(Expr::Nil)),
+            field("reduce-count", Expr::String(self.reduce_count.to_string())),
+            field("race-done", Expr::Bool(self.race_done)),
+            field("quorum-done", Expr::Bool(self.quorum_done)),
+            field(
+                "quorum",
+                Expr::List(
+                    self.quorum
+                        .iter()
+                        .map(|q| {
+                            Expr::List(vec![
+                                q.key.clone(),
+                                q.value.clone(),
+                                Expr::String(q.count.to_string()),
+                            ])
+                        })
+                        .collect(),
+                ),
+            ),
+        ])
+    }
+
+    fn from_expr(expr: &Expr) -> Result<Self, String> {
+        let fields = map(expr)?;
+        let merge_buffer = list(get(fields, "merge")?)?
+            .iter()
+            .cloned()
+            .map(|expr| PortValue { expr })
+            .collect();
+        let latest = map(get(fields, "latest")?)?
+            .iter()
+            .map(|(k, v)| match k {
+                Expr::Symbol(s) => Ok((s.clone(), v.clone())),
+                _ => Err("latest key must be a symbol".into()),
+            })
+            .collect::<Result<_, String>>()?;
+        let reduce_acc = match get(fields, "reduce-acc")? {
+            Expr::Nil => None,
+            v => Some(v.clone()),
+        };
+        let quorum = list(get(fields, "quorum")?)?
+            .iter()
+            .map(|v| {
+                let xs = list(v)?;
+                if xs.len() != 3 {
+                    return Err("quorum row arity".into());
+                };
+                Ok(QuorumEntry {
+                    key: xs[0].clone(),
+                    value: xs[1].clone(),
+                    count: u32v(&xs[2])?,
+                })
+            })
+            .collect::<Result<_, String>>()?;
+        Ok(Self {
+            merge_buffer,
+            merge_any_done: boolv(get(fields, "merge-any-done")?)?,
+            latest,
+            reduce_acc,
+            reduce_count: usizev(get(fields, "reduce-count")?)?,
+            race_done: boolv(get(fields, "race-done")?)?,
+            quorum_done: boolv(get(fields, "quorum-done")?)?,
+            quorum,
+        })
+    }
+}
+
+fn map(expr: &Expr) -> Result<&[(Expr, Expr)], String> {
+    if let Expr::Map(v) = expr {
+        Ok(v)
+    } else {
+        Err("expected map".into())
+    }
+}
+fn list(expr: &Expr) -> Result<&[Expr], String> {
+    if let Expr::List(v) = expr {
+        Ok(v)
+    } else {
+        Err("expected list".into())
+    }
+}
+fn get<'a>(m: &'a [(Expr, Expr)], key: &str) -> Result<&'a Expr, String> {
+    m.iter()
+        .find_map(|(k, v)| {
+            matches!(k,Expr::Symbol(s) if s.namespace.is_none()&&s.name.as_ref()==key).then_some(v)
+        })
+        .ok_or_else(|| format!("missing {key}"))
+}
+fn boolv(v: &Expr) -> Result<bool, String> {
+    if let Expr::Bool(v) = v {
+        Ok(*v)
+    } else {
+        Err("expected bool".into())
+    }
+}
+fn u32v(v: &Expr) -> Result<u32, String> {
+    if let Expr::String(v) = v {
+        v.parse().map_err(|_| "expected u32".into())
+    } else {
+        Err("expected u32".into())
+    }
+}
+fn usizev(v: &Expr) -> Result<usize, String> {
+    if let Expr::String(v) = v {
+        v.parse().map_err(|_| "expected usize".into())
+    } else {
+        Err("expected usize".into())
     }
 }
 

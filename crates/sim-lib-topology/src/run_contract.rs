@@ -2,7 +2,17 @@
 
 use std::fmt;
 
-use sim_kernel::{Cx, Error, Expr, Result, ShapeRef, Value};
+use sim_kernel::{Cx, Error, Expr, Result, ShapeRef, Symbol, Value};
+
+use crate::{Node, Port};
+
+pub(crate) fn input_port<'a>(node: &'a Node, name: &Symbol) -> Option<&'a Port> {
+    node.inputs.iter().find(|port| port.name == *name)
+}
+
+pub(crate) fn output_port<'a>(node: &'a Node, name: &Symbol) -> Option<&'a Port> {
+    node.outputs.iter().find(|port| port.name == *name)
+}
 use sim_shape::parse_shape_expr;
 
 /// Checks an expression against an optional topology shape expression.

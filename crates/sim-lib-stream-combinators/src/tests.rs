@@ -179,7 +179,11 @@ fn stale_cell_version_fails_and_current_version_succeeds() {
 
 #[test]
 fn run_bang_projects_combinator_stream_events() {
-    let mut cx = sim_kernel::Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let mut cx = sim_kernel::Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x5337_0e98_2ff1_038f),
+    );
     let stream = Stream::pull(metadata(), vec![packet("one")]);
 
     let events = run_bang(
@@ -247,7 +251,11 @@ fn seek_skips_earlier_packets() {
 
 #[test]
 fn replay_of_recorded_remote_stream_is_deterministic_offline() {
-    let mut cx = sim_kernel::Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let mut cx = sim_kernel::Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x0aaa_ccf1_ad86_6ec6),
+    );
     let run = Ref::Symbol(Symbol::qualified("run", "recorded-remote"));
     let expected = vec![
         ticked_packet("remote-one", 1),
@@ -393,7 +401,11 @@ fn record_replay_and_seek_preserve_data_packets_exactly() {
 
 #[test]
 fn record_ledger_slice_preserves_data_payload_equality() {
-    let mut cx = sim_kernel::Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let mut cx = sim_kernel::Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x398c_4693_3652_240c),
+    );
     let run = Ref::Symbol(Symbol::qualified("run", "data-recorded-remote"));
     let expected = vec![
         ticked_data_packet(
@@ -481,7 +493,11 @@ fn ticked_data_packet(kind: Symbol, payload: Expr, index: u8) -> StreamItem {
 }
 
 fn tick(index: u8) -> Tick {
-    let mut cx = sim_kernel::Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let mut cx = sim_kernel::Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x3e08_df1b_4f0c_f6b3),
+    );
     test_clock()
         .tick_for_index(&mut cx, ClockIndex::new(u64::from(index)))
         .unwrap()
